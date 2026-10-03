@@ -6,7 +6,9 @@ puppeteer.use(StealthPlugin());
 const TARGET_CHANNELS = [
   { id: "ten1", title: "Sony Sports Ten 1 HD", url: "https://playsza.ru/player.php?id=ten1" },
   { id: "willow", title: "Willow Cricket HD", url: "https://playsza.ru/player.php?id=willow" },
-  { id: "willow2", title: "Willow 2 / Extra HD", url: "https://playsza.ru/player.php?id=willow2" }
+  { id: "willow2", title: "Willow 2 / Extra HD", url: "https://playsza.ru/player.php?id=willow2" },
+  { id: "willowhd", title: "Willow 4K HD", url: "https://playsza.ru/player.php?id=willowhd" },
+  { id: "starsp4", title: "Star Sport 2 HD", url: "https://playsza.ru/player.php?id=starsp4" }
 ];
 
 async function verifyStream(streamUrl, referer = "https://playsza.xyz/") {
@@ -28,7 +30,6 @@ async function verifyStream(streamUrl, referer = "https://playsza.xyz/") {
       return { ok: false, error: "Not a valid M3U8 playlist" };
     }
 
-    // Parse lines and fetch first .ts video chunk
     const lines = text.split("\n").map(l => l.trim()).filter(l => l && !l.startsWith("#"));
     if (lines.length === 0) {
       return { ok: false, error: "Empty playlist" };
@@ -65,12 +66,20 @@ async function testChannel(browser, channel) {
   console.log(`======================================================`);
 
   const page = await browser.newPage();
-  await page.setViewport({ width: 1280, height: 720 });
-  await page.setUserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36");
+  await page.setViewport({ width: 1366, height: 768 });
+
+  // Set required headers for embed permission
+  await page.setExtraHTTPHeaders({
+    "Referer": "https://crichd.mobile/",
+    "Accept-Language": "en-US,en;q=0.9",
+    "sec-ch-ua": '"Chromium";v="128", "Not;A=Brand";v="24", "Google Chrome";v="128"',
+    "sec-ch-ua-mobile": "?0",
+    "sec-ch-ua-platform": '"Windows"'
+  });
 
   let sniffedStreamUrl = null;
 
-  // Intercept all outgoing network requests
+  // Intercept all network traffic
   page.on("request", (req) => {
     const reqUrl = req.url();
     if (
@@ -79,48 +88,93 @@ async function testChannel(browser, channel) {
     ) {
       if (!sniffedStreamUrl) {
         sniffedStreamUrl = reqUrl;
-        console.log(`🎯 [SNIFFED .M3U8 TOKEN]: ${reqUrl}`);
+        console.log(`🎯 [SNIFFED .M3U8 ON REQUEST]: ${reqUrl}`);
+      }
+    }
+  });
+
+  page.on("response", async (res) => {
+    const resUrl = res.url();
+    if (
+      resUrl.includes(".m3u8") &&
+      (resUrl.includes("bhalocast.com") || resUrl.includes("md5=") || resUrl.includes("/hls/"))
+    ) {
+      if (!sniffedStreamUrl) {
+        sniffedStreamUrl = resUrl;
+        console.log(`🎯 [SNIFFED .M3U8 ON RESPONSE]: ${resUrl}`);
       }
     }
   });
 
   try {
-    console.log(`⏳ Loading page and waiting for Cloudflare verification...`);
-    await page.goto(channel.url, { waitUntil: "domcontentloaded", timeout: 25000 });
+    console.log(`⏳ Loading ${channel.url} with Referer: https://crichd.mobile/ ...`);
+    await page.goto(channel.url, { waitUntil: "networkidle2", timeout: 30000 }).catch(() => {});
 
-    // Wait up to 15 seconds for video player initialization and network stream requests
-    for (let i = 0; i < 15; i++) {
+    // Check DOM and iframes
+    for (let sec = 1; sec <= 15; sec++) {
       if (sniffedStreamUrl) break;
+
+      const pageTitle = await page.title().catch(() => "");
+      const currentUrl = page.url();
+
+      // If Cloudflare Turnstile Challenge is on screen, try auto-clicking the challenge box
+      try {
+        const frames = page.frames();
+        for (const frame of frames) {
+          const frameUrl = frame.url();
+          if (frameUrl.includes("challenges.cloudflare.com") || frameUrl.includes("turnstile")) {
+            console.log(`🛡️ Detected Cloudflare Turnstile iframe, attempting interaction...`);
+            const checkbox = await frame.$("input[type=checkbox], .ctp-checkbox-label, #challenge-stage");
+            if (checkbox) {
+              await checkbox.click().catch(() => {});
+            }
+          }
+        }
+      } catch (_) {}
+
+      // Check video / player objects in all frames
+      try {
+        const foundUrl = await page.evaluate(() => {
+          const v = document.querySelector("video");
+          if (v && v.src && v.src.includes(".m3u8")) return v.src;
+          const ifr = document.querySelector("iframe");
+          if (ifr && ifr.src && ifr.src.includes(".m3u8")) return ifr.src;
+          // Check Clappr / HLS.js instance in window
+          if (window.player && window.player.options && window.player.options.source) {
+            return window.player.options.source;
+          }
+          return null;
+        });
+
+        if (foundUrl) {
+          sniffedStreamUrl = foundUrl;
+          console.log(`🎯 [FOUND IN PAGE DOM]: ${foundUrl}`);
+          break;
+        }
+      } catch (_) {}
+
+      if (sec === 5) {
+        console.log(`ℹ️ [State at 5s] Page Title: "${pageTitle}" | Current URL: ${currentUrl}`);
+      }
+
       await new Promise((r) => setTimeout(r, 1000));
     }
 
     if (!sniffedStreamUrl) {
-      // Check iframe or video elements in DOM
-      const videoSrc = await page.evaluate(() => {
-        const v = document.querySelector("video");
-        if (v && v.src) return v.src;
-        const iframe = document.querySelector("iframe");
-        if (iframe && iframe.src) return iframe.src;
-        return null;
-      });
-      if (videoSrc && videoSrc.includes(".m3u8")) {
-        sniffedStreamUrl = videoSrc;
-        console.log(`🎯 [FOUND IN DOM]: ${videoSrc}`);
-      }
+      const finalTitle = await page.title().catch(() => "");
+      const bodySnippet = await page.evaluate(() => document.body?.innerText?.substring(0, 300) || "").catch(() => "");
+      console.log(`❌ [FAILED] Page Title: "${finalTitle}"`);
+      console.log(`   Body preview: ${bodySnippet.replace(/\n+/g, " ")}`);
+      await page.close();
+      return { id: channel.id, title: channel.title, pass: false, error: `Blocked / Turnstile (${finalTitle})` };
     }
 
     await page.close();
 
-    if (!sniffedStreamUrl) {
-      console.log(`❌ [FAILED] Could not sniff .m3u8 token within timeout.`);
-      return { id: channel.id, title: channel.title, pass: false, error: "Sniff Timeout / No .m3u8" };
-    }
-
-    console.log(`📡 Verifying live playback & chunk download for sniffed stream...`);
+    console.log(`📡 Verifying live playback for sniffed stream...`);
     const verification = await verifyStream(sniffedStreamUrl, "https://playsza.xyz/");
 
     if (verification.ok) {
-      // Calculate remaining validity time if token has expires timestamp
       let validityMinutes = "N/A";
       const expMatch = sniffedStreamUrl.match(/expires=(\d+)/);
       if (expMatch) {
@@ -155,7 +209,8 @@ async function run() {
       "--disable-accelerated-2d-canvas",
       "--no-first-run",
       "--no-zygote",
-      "--disable-gpu"
+      "--disable-gpu",
+      "--window-size=1366,768"
     ]
   });
 
@@ -175,10 +230,10 @@ async function run() {
 
   const allPassed = results.every(r => r.pass);
   if (allPassed) {
-    console.log("\n🎉 ALL TESTS PASSED (100%)! Chromium scraper is ready for production integration.");
+    console.log("\n🎉 ALL TESTS PASSED (100%)! Chromium scraper is working.");
     process.exit(0);
   } else {
-    console.log("\n⚠️ SOME TESTS FAILED. Inspect logs above for details.");
+    console.log("\n⚠️ Scraper finished. Check the log details above.");
     process.exit(1);
   }
 }
