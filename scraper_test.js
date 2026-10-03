@@ -10,7 +10,7 @@ const { URL } = require('url');
 
 const TARGET_URL = process.env.TARGET_URL || 'https://replit.com/@shrqbabu/Gemini-Hub';
 
-const REPLIT_COOKIE = process.env.REPLIT_COOKIE;
+const REPLIT_COOKIE = process.env.REPLIT_COOKIE || 'eyJhbGciOiJSG3whML6cC3SUgD8pryZYP0I79ED7v_OCD3mt9khZl0Gh24bLLIc9oNI1_14s54O9nq2VC4MxtIA7bU7uqlKGKlJ0aw_1eeLYPCMOp-riYTCVz3Mjh0dCcw22TV8t2QZazJJUu_CWfERd004egBcJRxhg8Q5ic-n2utXxBr2LDxWmDpIIeQ';
 
 const ZENROWS_API_KEY = (process.env.ZENROWS_API_KEY || '').trim();
 const CUSTOM_PROXY = (process.env.PROXY_URL || process.env.PROXY_SERVER || '').trim();
@@ -18,7 +18,7 @@ const CUSTOM_PROXY = (process.env.PROXY_URL || process.env.PROXY_SERVER || '').t
 // Setup Proxy Configuration
 function getProxyConfig() {
   if (ZENROWS_API_KEY) {
-    console.log('🛡️ Proxy: ZenRows Residential Proxy configured (via ZENROWS_API_KEY secret)');
+    console.log('🛡️ Proxy: ZenRows Residential Proxy configured (via ZENROWS_API_KEY)');
     return {
       server: 'http://proxy.zenrows.com:8001',
       username: ZENROWS_API_KEY,
@@ -75,15 +75,15 @@ async function solveCloudflare(page) {
   try {
     const title = await page.title().catch(() => '');
     if (title.includes('Just a moment') || title.includes('Attention Required')) {
-      console.log('⚠️ Cloudflare Challenge detected! Finding checkbox...');
+      console.log(`⚠️ Cloudflare Challenge detected ("${title}")! Finding checkbox...`);
       const frames = page.frames();
       for (const frame of frames) {
         const checkbox = await frame.$('input[type="checkbox"], .ctp-checkbox-label, #challenge-stage, .mark').catch(() => null);
         if (checkbox) {
-          console.log('👉 Found Turnstile checkbox! Clicking...');
+          console.log('👉 Found Turnstile checkbox in frame! Clicking...');
           await checkbox.click().catch(() => {});
           await new Promise(r => setTimeout(r, 4000));
-          return;
+          return true;
         }
       }
 
@@ -94,10 +94,12 @@ async function solveCloudflare(page) {
           console.log(`👉 Clicking Turnstile at (${box.x + 30}, ${box.y + box.height / 2})...`);
           await page.mouse.click(box.x + 30, box.y + box.height / 2);
           await new Promise(r => setTimeout(r, 4000));
+          return true;
         }
       }
     }
   } catch (_) {}
+  return false;
 }
 
 async function start() {
@@ -124,7 +126,7 @@ async function start() {
     '--disable-extensions',
     '--disable-default-apps',
     '--mute-audio',
-    '--window-size=1280,720'
+    '--window-size=1920,1080'
   ];
 
   if (proxyConfig.server) {
@@ -134,7 +136,7 @@ async function start() {
   const launchOptions = {
     headless: isXvfb ? false : 'new',
     userDataDir: PROFILE_DIR,
-    defaultViewport: { width: 1280, height: 720 },
+    defaultViewport: { width: 1920, height: 1080 },
     args: launchArgs
   };
 
@@ -172,46 +174,87 @@ async function start() {
   console.log('Monitoring Replit Workspace and clicking Run button...\n');
 
   let clickedSuccess = false;
-  const maxAttempts = 15;
+  const maxAttempts = 18; // Poll for ~2.5 minutes
 
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-    await solveCloudflare(page);
+    const isChallenge = await solveCloudflare(page);
+    const currentUrl = page.url();
+    const currentTitle = await page.title().catch(() => '');
 
+    console.log(`[Attempt ${attempt}/${maxAttempts}] Title: "${currentTitle}" | URL: ${currentUrl}`);
+
+    if (isChallenge) {
+      await new Promise(r => setTimeout(r, 5000));
+      continue;
+    }
+
+    // 1. Try Universal Keyboard Shortcut (Ctrl+Enter is Replit's Run Shortcut)
+    try {
+      await page.keyboard.down('Control');
+      await page.keyboard.press('Enter');
+      await page.keyboard.up('Control');
+    } catch (_) {}
+
+    // 2. Comprehensive DOM Element Search for Run / Open buttons
     const clicked = await page.evaluate(() => {
-      const target = document.querySelector('[action="run_button_used"]') ||
-                     document.querySelector('[data-action="run_button_used"]') ||
-                     document.querySelector('[data-analytics*="run_button_used"]') ||
-                     document.querySelector('button[aria-label*="Run"]');
-      if (target) {
-        target.click();
-        return { success: true, text: 'Action Target' };
+      // Priority 1: Exact Action attribute buttons
+      const directActions = [
+        '[action="run_button_used"]',
+        '[data-action="run_button_used"]',
+        '[data-analytics*="run_button_used"]',
+        '[data-cy="run-button"]',
+        '[data-testid="run-button"]',
+        'button[aria-label*="Run"]',
+        'button[aria-label*="run"]',
+        'button[title*="Run"]'
+      ];
+
+      for (const sel of directActions) {
+        const el = document.querySelector(sel);
+        if (el) {
+          el.click();
+          return { success: true, text: sel };
+        }
       }
 
-      const container = document.querySelector('button:has([action="run_button_used"])');
-      if (container) {
-        container.click();
-        return { success: true, text: 'Container Target' };
+      // Priority 2: "Open in Workspace" or "Fork" if on Cover page
+      const openBtn = Array.from(document.querySelectorAll('button, a')).find(el => {
+        const t = (el.innerText || '').trim();
+        return t.includes('Open in Workspace') || t.includes('Fork') || t.includes('Edit in Workspace');
+      });
+      if (openBtn) {
+        openBtn.click();
+        return { success: true, text: 'Open in Workspace / Fork' };
       }
 
+      // Priority 3: Search all button and span text
       const allElements = Array.from(document.querySelectorAll('button, div[role="button"], a, span'));
       for (const el of allElements) {
         const text = (el.innerText || el.textContent || '').trim();
-        if (text.includes('Run .replit run command') || text === 'Run' || text === '▶ Run' || el.getAttribute('action') === 'run_button_used') {
+        if (text === 'Run' || text === '▶ Run' || text === 'Run Repl' || text.startsWith('Run ') || text.includes('run command')) {
           const btn = el.closest('button') || el;
           btn.click();
           return { success: true, text: text };
         }
       }
 
-      return { success: false };
+      // Collect visible buttons for debugging
+      const visibleButtons = Array.from(document.querySelectorAll('button'))
+        .map(b => (b.innerText || b.getAttribute('aria-label') || '').trim())
+        .filter(Boolean)
+        .slice(0, 8);
+
+      return { success: false, visibleButtons };
     });
 
     if (clicked && clicked.success) {
-      console.log(`[Attempt ${attempt}] 🚀 SUCCESS: Clicked Run Button (${clicked.text})!`);
+      console.log(`\n🚀 [SUCCESS]: Clicked Button -> "${clicked.text}"!`);
       clickedSuccess = true;
       console.log('Keeping container alive for 30s to ensure startup...');
       await new Promise(r => setTimeout(r, 30000));
       break;
+    } else if (clicked && clicked.visibleButtons && clicked.visibleButtons.length > 0) {
+      console.log(`   ℹ️ [Visible Buttons]: [${clicked.visibleButtons.join(', ')}]`);
     }
 
     await new Promise(r => setTimeout(r, 8000));
@@ -220,10 +263,10 @@ async function start() {
   await browser.close();
 
   if (clickedSuccess) {
-    console.log('✅ Workflow job finished successfully. Replit is RUNNING!');
+    console.log('\n✅ Workflow job finished successfully. Replit is RUNNING!');
     process.exit(0);
   } else {
-    console.warn('⚠️ Warning: Run button not detected within timeout. Profile saved.');
+    console.warn('\n⚠️ Warning: Run button not detected within timeout. Profile saved.');
     process.exit(0);
   }
 }
