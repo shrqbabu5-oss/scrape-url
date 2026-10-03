@@ -9,6 +9,7 @@
   "dependencies": {
     "puppeteer-extra": "^3.3.6",
     "puppeteer-extra-plugin-stealth": "^2.11.2",
+    "pm2": "^7.0.4",
     "puppeteer": "^22.6.0"
   }
 }
