@@ -1,0 +1,29 @@
+name: 🧪 Test Chromium Live Stream Scraper
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '*/45 * * * *'
+
+jobs:
+  test-scraper:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: 📥 Checkout Test Repository
+        uses: actions/checkout@v4
+
+      - name: 🟢 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: 📦 Install Scraper Dependencies
+        run: |
+          npm install
+
+      - name: 🚀 Run Headless Chromium Scraper Test
+        run: |
+          node scraper_test.js
