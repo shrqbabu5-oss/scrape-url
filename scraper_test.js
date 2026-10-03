@@ -1,249 +1,132 @@
-const fs = require("fs");
-const puppeteer = require("puppeteer-extra");
-const StealthPlugin = require("puppeteer-extra-plugin-stealth");
+const puppeteer = require('puppeteer-core');
+const fs = require('fs');
 
-puppeteer.use(StealthPlugin());
+const TARGET_URL = 'https://replit.com/@shrqbabu/Gemini-Hub';
 
-const TARGET_CHANNELS = [
-  { id: "ten1", title: "Sony Sports Ten 1 HD", url: "https://playsza.ru/player.php?id=ten1" },
-  { id: "willow", title: "Willow Cricket HD", url: "https://playsza.ru/player.php?id=willow" },
-  { id: "willow2", title: "Willow 2 / Extra HD", url: "https://playsza.ru/player.php?id=willow2" }
-];
+const CHROMIUM_PATH = fs.existsSync('/opt/google/chrome/chrome') 
+  ? '/opt/google/chrome/chrome' 
+  : '/usr/bin/google-chrome';
 
-async function verifyStream(streamUrl, referer = "https://playsza.xyz/") {
-  try {
-    const res = await fetch(streamUrl, {
-      headers: {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36",
-        "Referer": referer,
-      },
-      signal: AbortSignal.timeout(8000),
-    });
+const REPLIT_COOKIE = 'eyJhbGciOiJSUzI1NiIsImtpZCI6Iktna0hjZyJ9.eyJpc3MiOiJodHRwczovL3Nlc3Npb24uZmlyZWJhc2UuZ29vZ2xlLmNvbS9yZXBsaXQtd2ViIiwibmFtZSI6InNocnEgYmFidSIsInBpY3R1cmUiOiJodHRwczovL2xoMy5nb29nbGV1c2VyY29udGVudC5jb20vYS9BQ2c4b2NJNm0xcmtWQ0lfUFJidFdqMm14eVExV3FCQzAyWGltbFN3TEszMHVKcVRDbGtscHdcdTAwM2RzOTYtYyIsInJvbGVzIjpbXSwicmVwbGl0X3VzZXJfaWQiOjYyNDAzODM4LCJhdWQiOiJyZXBsaXQtd2ViIiwiYXV0aF90aW1lIjoxNzkwNDA3NTU1LCJ1c2VyX2lkIjoiTWZEWEpOaU80cU1Db3pXN29FeE5GbUdpWXV3MSIsInN1YiI6Ik1mRFhKTmlPNHFNQ296VzdvRXhORm1HaVl1dzEiLCJpYXQiOjE3OTA0MTg3ODYsImV4cCI6MTc5MTYyODM4NiwiZW1haWwiOiJzaHJxYmFidTVAZ21haWwuY29tIiwiZW1haWxfdmVyaWZpZWQiOnRydWUsImZpcmViYXNlIjp7ImlkZW50aXRpZXMiOnsiZ29vZ2xlLmNvbSI6WyIxMTM4MDQxNjQ0NzUzMzc5ODYxMTgiXSwiZW1haWwiOlsic2hycWJhYnU1QGdtYWlsLmNvbSJdfSwic2lnbl9pbl9wcm92aWRlciI6Imdvb2dsZS5jb20ifX0.R4k23nccjgrJAWKR4Uco7q2OrTM_gVVA-hrMJl0N9z_7ZMaVdZuc1KAEG7PDMSeA4LFI8WErUG3whML6cC3SUgD8pryZYP0I79ED7v_OCD3mt9khZl0Gh24bLLIc9oNI1_14s54O9nq2VC4MxtIA7bU7uqlKGKlJ0aw_1eeJpa15Aj_0HdImL15urxrBM3GsZjSYPypP5lRMJPmQz0EJJd_FX8od-3uNyJ_nY8ji40brivUmevi3e0hjBYdDRpUexHLYPCMOp-riYTCVz3Mjh0dCcw22TV8t2QZazJJUu_CWfERd004egBcJRxhg8Q5ic-n2utXxBr2LDxWmDpIIeQ';
 
-    if (!res.ok) {
-      return { ok: false, error: `HTTP ${res.status}` };
-    }
-
-    const text = await res.text();
-    if (!text.includes("#EXTM3U")) {
-      return { ok: false, error: "Not a valid M3U8 playlist" };
-    }
-
-    const lines = text.split("\n").map(l => l.trim()).filter(l => l && !l.startsWith("#"));
-    if (lines.length === 0) {
-      return { ok: false, error: "Empty playlist" };
-    }
-
-    let chunkUrl = lines[0];
-    if (!chunkUrl.startsWith("http")) {
-      chunkUrl = new URL(chunkUrl, streamUrl).href;
-    }
-
-    const chunkRes = await fetch(chunkUrl, {
-      headers: {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-        "Referer": referer,
-      },
-      signal: AbortSignal.timeout(8000),
-    });
-
-    if (chunkRes.ok) {
-      const len = chunkRes.headers.get("content-length") || "chunked";
-      return { ok: true, chunkBytes: len, chunkStatus: chunkRes.status };
-    } else {
-      return { ok: false, error: `Chunk HTTP ${chunkRes.status}` };
-    }
-  } catch (err) {
-    return { ok: false, error: err.message };
-  }
-}
-
-async function testChannel(browser, channel) {
-  console.log(`\n======================================================`);
-  console.log(`🔍 [Testing Channel] ${channel.title} (${channel.id})`);
-  console.log(`🌐 Target Embed URL: ${channel.url}`);
-  console.log(`======================================================`);
-
-  const page = await browser.newPage();
-  await page.setViewport({ width: 1920, height: 1080 });
-
-  await page.setUserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36");
-
-  await page.setExtraHTTPHeaders({
-    "Referer": "https://crichd.mobile/",
-    "Accept-Language": "en-US,en;q=0.9",
-    "sec-ch-ua": '"Chromium";v="130", "Google Chrome";v="130", "Not?A_Brand";v="99"',
-    "sec-ch-ua-mobile": "?0",
-    "sec-ch-ua-platform": '"Windows"'
-  });
-
-  let sniffedStreamUrl = null;
-
-  // Intercept all network traffic
-  page.on("request", (req) => {
-    const reqUrl = req.url();
-    if (
-      reqUrl.includes(".m3u8") &&
-      (reqUrl.includes("bhalocast.com") || reqUrl.includes("md5=") || reqUrl.includes("/hls/"))
-    ) {
-      if (!sniffedStreamUrl) {
-        sniffedStreamUrl = reqUrl;
-        console.log(`🎯 [SNIFFED .M3U8 ON REQUEST]: ${reqUrl}`);
-      }
-    }
-  });
-
-  page.on("response", async (res) => {
-    const resUrl = res.url();
-    if (
-      resUrl.includes(".m3u8") &&
-      (resUrl.includes("bhalocast.com") || resUrl.includes("md5=") || resUrl.includes("/hls/"))
-    ) {
-      if (!sniffedStreamUrl) {
-        sniffedStreamUrl = resUrl;
-        console.log(`🎯 [SNIFFED .M3U8 ON RESPONSE]: ${resUrl}`);
-      }
-    }
-  });
-
-  try {
-    console.log(`⏳ Loading ${channel.url} under Xvfb display...`);
-    await page.goto(channel.url, { waitUntil: "domcontentloaded", timeout: 35000 }).catch(() => {});
-
-    // Monitor for 20 seconds and auto-click Turnstile if present
-    for (let sec = 1; sec <= 20; sec++) {
-      if (sniffedStreamUrl) break;
-
-      const pageTitle = await page.title().catch(() => "");
-
-      // Check for Cloudflare Turnstile iframe and simulate real mouse click
-      try {
-        const turnstileIframe = await page.$('iframe[src*="challenges.cloudflare.com"], iframe[src*="turnstile"]');
-        if (turnstileIframe) {
-          const box = await turnstileIframe.boundingBox();
-          if (box) {
-            console.log(`🛡️ [Sec ${sec}] Found Turnstile widget at (${Math.round(box.x)}, ${Math.round(box.y)}). Simulating mouse click...`);
-            await page.mouse.move(box.x + 35, box.y + box.height / 2, { steps: 5 });
-            await new Promise(r => setTimeout(r, 150));
-            await page.mouse.down();
-            await new Promise(r => setTimeout(r, 100));
-            await page.mouse.up();
-          }
-        }
-      } catch (_) {}
-
-      // Check video elements in DOM
-      try {
-        const foundUrl = await page.evaluate(() => {
-          const v = document.querySelector("video");
-          if (v && v.src && v.src.includes(".m3u8")) return v.src;
-          const ifr = document.querySelector("iframe");
-          if (ifr && ifr.src && ifr.src.includes(".m3u8")) return ifr.src;
-          if (window.player && window.player.options && window.player.options.source) {
-            return window.player.options.source;
-          }
-          return null;
-        });
-
-        if (foundUrl) {
-          sniffedStreamUrl = foundUrl;
-          console.log(`🎯 [FOUND IN DOM]: ${foundUrl}`);
-          break;
-        }
-      } catch (_) {}
-
-      if (sec % 5 === 0) {
-        console.log(`ℹ️ [State at ${sec}s] Page Title: "${pageTitle}"`);
-      }
-
-      await new Promise((r) => setTimeout(r, 1000));
-    }
-
-    if (!sniffedStreamUrl) {
-      const finalTitle = await page.title().catch(() => "");
-      console.log(`❌ [FAILED] Page Title: "${finalTitle}"`);
-      await page.close().catch(() => {});
-      return { id: channel.id, title: channel.title, pass: false, error: `Turnstile / No stream (${finalTitle})` };
-    }
-
-    await page.close().catch(() => {});
-
-    console.log(`📡 Verifying live playback & downloading chunk...`);
-    const verification = await verifyStream(sniffedStreamUrl, "https://playsza.xyz/");
-
-    if (verification.ok) {
-      let validityMinutes = "N/A";
-      const expMatch = sniffedStreamUrl.match(/expires=(\d+)/);
-      if (expMatch) {
-        const expUnix = parseInt(expMatch[1], 10);
-        validityMinutes = Math.round((expUnix * 1000 - Date.now()) / 60000) + " mins";
-      }
-
-      console.log(`✅ [100% PASS] Live Stream is Active and Playing!`);
-      console.log(`   - Chunk Status: HTTP ${verification.chunkStatus} (${verification.chunkBytes} bytes)`);
-      console.log(`   - Token Validity: ${validityMinutes}`);
-      return { id: channel.id, title: channel.title, pass: true, streamUrl: sniffedStreamUrl, validity: validityMinutes };
-    } else {
-      console.log(`❌ [VERIFICATION FAILED]: ${verification.error}`);
-      return { id: channel.id, title: channel.title, pass: false, error: verification.error };
-    }
-  } catch (err) {
-    await page.close().catch(() => {});
-    console.log(`❌ [ERROR] ${err.message}`);
-    return { id: channel.id, title: channel.title, pass: false, error: err.message };
-  }
-}
-
-async function run() {
-  console.log("======================================================");
-  console.log("🚀 Starting Xvfb Real Chrome Live Stream Scraper Test ");
-  console.log("======================================================");
-
-  const chromePath = fs.existsSync("/usr/bin/google-chrome") ? "/usr/bin/google-chrome" : undefined;
-  if (chromePath) {
-    console.log("🖥️ Using Google Chrome Binary:", chromePath);
-  }
+async function start() {
+  console.log('====================================================');
+  console.log('   VPS REPLIT RUNNER (AUTO CLOUDFLARE BYPASS)       ');
+  console.log('====================================================');
+  console.log('Target URL : ', TARGET_URL);
+  console.log('Browser    : ', CHROMIUM_PATH);
+  console.log('Status     : Starting browser...\n');
 
   const browser = await puppeteer.launch({
-    executablePath: chromePath,
-    headless: false, // Runs in real screen mode inside Xvfb display
-    defaultViewport: null,
+    executablePath: CHROMIUM_PATH,
+    headless: 'new',
+    defaultViewport: { width: 1280, height: 720 },
     args: [
-      "--no-sandbox",
-      "--disable-setuid-sandbox",
-      "--disable-blink-features=AutomationControlled",
-      "--disable-dev-shm-usage",
-      "--disable-web-security",
-      "--window-size=1920,1080",
-      "--start-maximized"
+      '--no-sandbox',
+      '--disable-setuid-sandbox',
+      '--disable-dev-shm-usage',
+      '--disable-gpu',
+      '--disable-software-rasterizer',
+      '--renderer-process-limit=1',
+      '--disable-site-isolation-trials',
+      '--disable-blink-features=AutomationControlled',
+      '--disable-extensions',
+      '--disable-default-apps',
+      '--disable-sync'
     ]
   });
 
-  const results = [];
+  const page = await browser.newPage();
 
-  for (const ch of TARGET_CHANNELS) {
-    const res = await testChannel(browser, ch);
-    results.push(res);
+  // Stealth: Mask webdriver
+  await page.evaluateOnNewDocument(() => {
+    Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
+    window.chrome = { runtime: {} };
+  });
+
+  if (REPLIT_COOKIE) {
+    const cookiesToSet = [
+      { name: 'connect.sid', value: REPLIT_COOKIE, domain: '.replit.com', path: '/' },
+      { name: 'replit:authtoken', value: REPLIT_COOKIE, domain: '.replit.com', path: '/' }
+    ];
+    for (const c of cookiesToSet) {
+      await page.setCookie(c).catch(() => {});
+    }
   }
 
-  await browser.close();
+  await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36');
 
-  console.log("\n======================================================");
-  console.log("📊 FINAL TEST SCORECARD");
-  console.log("======================================================");
-  console.table(results);
+  console.log('Navigating to Replit Workspace...');
+  await page.goto(TARGET_URL, { waitUntil: 'domcontentloaded', timeout: 60000 }).catch(e => console.log(e.message));
 
-  const allPassed = results.every(r => r.pass);
-  if (allPassed) {
-    console.log("\n🎉 ALL TESTS PASSED (100%)! Headless Chrome on Xvfb successfully bypassed Cloudflare.");
+  // Auto-solve Cloudflare Turnstile if present
+  async function solveCloudflare() {
+    try {
+      const title = await page.title().catch(() => '');
+      if (title.includes('Just a moment')) {
+        console.log('⚠️ Cloudflare Challenge detected! Finding checkbox...');
+        const frames = page.frames();
+        for (const frame of frames) {
+          const checkbox = await frame.$('input[type="checkbox"], .ctp-checkbox-label, #challenge-stage, .mark').catch(() => null);
+          if (checkbox) {
+            console.log('👉 Found Turnstile checkbox! Clicking...');
+            await checkbox.click().catch(() => {});
+            await new Promise(r => setTimeout(r, 4000));
+            break;
+          }
+        }
+      }
+    } catch (_) {}
+  }
+
+  await solveCloudflare();
+
+  console.log('Watcher active: Monitoring Cloudflare and Run button every 8s...\n');
+
+  setInterval(async () => {
+    try {
+      // 1. Solve Cloudflare if on challenge screen
+      await solveCloudflare();
+
+      // 2. Check and click Run button
+      const clicked = await page.evaluate(() => {
+        const target = document.querySelector('[action="run_button_used"]') ||
+                       document.querySelector('[data-action="run_button_used"]') ||
+                       document.querySelector('[data-analytics*="run_button_used"]') ||
+                       document.querySelector('button[aria-label*="Run"]');
+        if (target) {
+          target.click();
+          return { success: true, text: 'Action Target' };
+        }
+
+        const container = document.querySelector('button:has([action="run_button_used"])');
+        if (container) {
+          container.click();
+          return { success: true, text: 'Container Target' };
+        }
+
+        const allElements = Array.from(document.querySelectorAll('button, div[role="button"], a, span'));
+        for (const el of allElements) {
+          const text = (el.innerText || el.textContent || '').trim();
+          if (text.includes('Run .replit run command') || text === 'Run' || text === '▶ Run' || el.getAttribute('action') === 'run_button_used') {
+            const btn = el.closest('button') || el;
+            btn.click();
+            return { success: true, text: text };
+          }
+        }
+
+        return { success: false };
+      });
+
+      if (clicked && clicked.success) {
+        console.log(`[${new Date().toLocaleTimeString()}] 🚀 SUCCESS: Clicked Run Button (${clicked.text})!`);
+      }
+    } catch (_) {}
+  }, 8000);
+
+  browser.on('disconnected', () => {
     process.exit(0);
-  } else {
-    console.log("\n⚠️ Scraper finished. Check the log details above.");
-    process.exit(1);
-  }
+  });
 }
 
-run().catch((err) => {
-  console.error("Fatal Runner Error:", err);
-  process.exit(1);
-});
+start().catch(err => console.error(err));
