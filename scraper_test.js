@@ -1,23 +1,13 @@
 const puppeteer = require('puppeteer-core');
 const fs = require('fs');
-const path = require('path');
 
 const TARGET_URL = 'https://replit.com/@shrqbabu/Gemini-Hub';
 
-const CHROMIUM_PATH = fs.existsSync('/opt/google/chrome/chrome')
-  ? '/opt/google/chrome/chrome'
+const CHROMIUM_PATH = fs.existsSync('/opt/google/chrome/chrome') 
+  ? '/opt/google/chrome/chrome' 
   : '/usr/bin/google-chrome';
 
 const REPLIT_COOKIE = 'eyJhbGciOiJSUzI1NiIsImtpZCI6Iktna0hjZyJ9.eyJpc3MiOiJodHRwczovL3Nlc3Npb24uZmlyZWJhc2UuZ29vZ2xlLmNvbS9yZXBsaXQtd2ViIiwibmFtZSI6InNocnEgYmFidSIsInBpY3R1cmUiOiJodHRwczovL2xoMy5nb29nbGV1c2VyY29udGVudC5jb20vYS9BQ2c4b2NJNm0xcmtWQ0lfUFJidFdqMm14eVExV3FCQzAyWGltbFN3TEszMHVKcVRDbGtscHdcdTAwM2RzOTYtYyIsInJvbGVzIjpbXSwicmVwbGl0X3VzZXJfaWQiOjYyNDAzODM4LCJhdWQiOiJyZXBsaXQtd2ViIiwiYXV0aF90aW1lIjoxNzkwNDA3NTU1LCJ1c2VyX2lkIjoiTWZEWEpOaU80cU1Db3pXN29FeE5GbUdpWXV3MSIsInN1YiI6Ik1mRFhKTmlPNHFNQ296VzdvRXhORm1HaVl1dzEiLCJpYXQiOjE3OTA0MTg3ODYsImV4cCI6MTc5MTYyODM4NiwiZW1haWwiOiJzaHJxYmFidTVAZ21haWwuY29tIiwiZW1haWxfdmVyaWZpZWQiOnRydWUsImZpcmViYXNlIjp7ImlkZW50aXRpZXMiOnsiZ29vZ2xlLmNvbSI6WyIxMTM4MDQxNjQ0NzUzMzc5ODYxMTgiXSwiZW1haWwiOlsic2hycWJhYnU1QGdtYWlsLmNvbSJdfSwic2lnbl9pbl9wcm92aWRlciI6Imdvb2dsZS5jb20ifX0.R4k23nccjgrJAWKR4Uco7q2OrTM_gVVA-hrMJl0N9z_7ZMaVdZuc1KAEG7PDMSeA4LFI8WErUG3whML6cC3SUgD8pryZYP0I79ED7v_OCD3mt9khZl0Gh24bLLIc9oNI1_14s54O9nq2VC4MxtIA7bU7uqlKGKlJ0aw_1eeJpa15Aj_0HdImL15urxrBM3GsZjSYPypP5lRMJPmQz0EJJd_FX8od-3uNyJ_nY8ji40brivUmevi3e0hjBYdDRpUexHLYPCMOp-riYTCVz3Mjh0dCcw22TV8t2QZazJJUu_CWfERd004egBcJRxhg8Q5ic-n2utXxBr2LDxWmDpIIeQ';
-
-// 1. Profile Directory (Save Profile)
-const PROFILE_DIR = path.join(__dirname, 'profile');
-if (!fs.existsSync(PROFILE_DIR)) {
-  fs.mkdirSync(PROFILE_DIR, { recursive: true });
-}
-
-// 2. ZenRows Proxy Configuration
-const ZENROWS_API_KEY = "bba338ba51c25bb778388157d45d4be349cb919f";
 
 async function start() {
   console.log('====================================================');
@@ -25,47 +15,28 @@ async function start() {
   console.log('====================================================');
   console.log('Target URL : ', TARGET_URL);
   console.log('Browser    : ', CHROMIUM_PATH);
-  console.log('Profile Dir: ', PROFILE_DIR);
-  if (ZENROWS_API_KEY) {
-    console.log('Proxy      :  ZenRows Proxy Active');
-  }
   console.log('Status     : Starting browser...\n');
-
-  const launchArgs = [
-    '--no-sandbox',
-    '--disable-setuid-sandbox',
-    '--disable-dev-shm-usage',
-    '--disable-gpu',
-    '--disable-software-rasterizer',
-    '--renderer-process-limit=1',
-    '--disable-site-isolation-trials',
-    '--disable-blink-features=AutomationControlled',
-    '--disable-extensions',
-    '--disable-default-apps',
-    '--disable-sync'
-  ];
-
-  if (ZENROWS_API_KEY) {
-    launchArgs.push('--proxy-server=http://proxy.zenrows.com:8001');
-  }
 
   const browser = await puppeteer.launch({
     executablePath: CHROMIUM_PATH,
     headless: 'new',
-    userDataDir: PROFILE_DIR, // Save Profile
     defaultViewport: { width: 1280, height: 720 },
-    args: launchArgs
+    args: [
+      '--no-sandbox',
+      '--disable-setuid-sandbox',
+      '--disable-dev-shm-usage',
+      '--disable-gpu',
+      '--disable-software-rasterizer',
+      '--renderer-process-limit=1',
+      '--disable-site-isolation-trials',
+      '--disable-blink-features=AutomationControlled',
+      '--disable-extensions',
+      '--disable-default-apps',
+      '--disable-sync'
+    ]
   });
 
   const page = await browser.newPage();
-
-  // Proxy Authentication
-  if (ZENROWS_API_KEY) {
-    await page.authenticate({
-      username: ZENROWS_API_KEY,
-      password: ''
-    });
-  }
 
   // Stealth: Mask webdriver
   await page.evaluateOnNewDocument(() => {
