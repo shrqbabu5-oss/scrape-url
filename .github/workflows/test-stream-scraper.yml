@@ -3,7 +3,7 @@ name: Test Chromium Live Stream Scraper
 on:
   workflow_dispatch:
   schedule:
-    - cron: '*/45 * * * *'
+    - cron: '*/30 * * * *'
 
 jobs:
   test-scraper:
