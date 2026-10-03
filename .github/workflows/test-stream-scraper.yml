@@ -42,4 +42,4 @@ jobs:
         env:
           ZENROWS_API_KEY: ${{ secrets.ZENROWS_API_KEY }}
         run: |
-          xvfb-run --auto-servernum --server-args="-screen 0 1920x1080x24" node test_script.js
+          xvfb-run --auto-servernum --server-args="-screen 0 1920x1080x24" node scraper_test.js
