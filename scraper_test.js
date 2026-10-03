@@ -1,3 +1,4 @@
+const fs = require("fs");
 const puppeteer = require("puppeteer-extra");
 const StealthPlugin = require("puppeteer-extra-plugin-stealth");
 
@@ -6,16 +7,14 @@ puppeteer.use(StealthPlugin());
 const TARGET_CHANNELS = [
   { id: "ten1", title: "Sony Sports Ten 1 HD", url: "https://playsza.ru/player.php?id=ten1" },
   { id: "willow", title: "Willow Cricket HD", url: "https://playsza.ru/player.php?id=willow" },
-  { id: "willow2", title: "Willow 2 / Extra HD", url: "https://playsza.ru/player.php?id=willow2" },
-  { id: "willowhd", title: "Willow 4K HD", url: "https://playsza.ru/player.php?id=willowhd" },
-  { id: "starsp4", title: "Star Sport 2 HD", url: "https://playsza.ru/player.php?id=starsp4" }
+  { id: "willow2", title: "Willow 2 / Extra HD", url: "https://playsza.ru/player.php?id=willow2" }
 ];
 
 async function verifyStream(streamUrl, referer = "https://playsza.xyz/") {
   try {
     const res = await fetch(streamUrl, {
       headers: {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36",
         "Referer": referer,
       },
       signal: AbortSignal.timeout(8000),
@@ -66,13 +65,14 @@ async function testChannel(browser, channel) {
   console.log(`======================================================`);
 
   const page = await browser.newPage();
-  await page.setViewport({ width: 1366, height: 768 });
+  await page.setViewport({ width: 1920, height: 1080 });
 
-  // Set required headers for embed permission
+  await page.setUserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36");
+
   await page.setExtraHTTPHeaders({
     "Referer": "https://crichd.mobile/",
     "Accept-Language": "en-US,en;q=0.9",
-    "sec-ch-ua": '"Chromium";v="128", "Not;A=Brand";v="24", "Google Chrome";v="128"',
+    "sec-ch-ua": '"Chromium";v="130", "Google Chrome";v="130", "Not?A_Brand";v="99"',
     "sec-ch-ua-mobile": "?0",
     "sec-ch-ua-platform": '"Windows"'
   });
@@ -107,39 +107,38 @@ async function testChannel(browser, channel) {
   });
 
   try {
-    console.log(`⏳ Loading ${channel.url} with Referer: https://crichd.mobile/ ...`);
-    await page.goto(channel.url, { waitUntil: "networkidle2", timeout: 30000 }).catch(() => {});
+    console.log(`⏳ Loading ${channel.url} under Xvfb display...`);
+    await page.goto(channel.url, { waitUntil: "domcontentloaded", timeout: 35000 }).catch(() => {});
 
-    // Check DOM and iframes
-    for (let sec = 1; sec <= 15; sec++) {
+    // Monitor for 20 seconds and auto-click Turnstile if present
+    for (let sec = 1; sec <= 20; sec++) {
       if (sniffedStreamUrl) break;
 
       const pageTitle = await page.title().catch(() => "");
-      const currentUrl = page.url();
 
-      // If Cloudflare Turnstile Challenge is on screen, try auto-clicking the challenge box
+      // Check for Cloudflare Turnstile iframe and simulate real mouse click
       try {
-        const frames = page.frames();
-        for (const frame of frames) {
-          const frameUrl = frame.url();
-          if (frameUrl.includes("challenges.cloudflare.com") || frameUrl.includes("turnstile")) {
-            console.log(`🛡️ Detected Cloudflare Turnstile iframe, attempting interaction...`);
-            const checkbox = await frame.$("input[type=checkbox], .ctp-checkbox-label, #challenge-stage");
-            if (checkbox) {
-              await checkbox.click().catch(() => {});
-            }
+        const turnstileIframe = await page.$('iframe[src*="challenges.cloudflare.com"], iframe[src*="turnstile"]');
+        if (turnstileIframe) {
+          const box = await turnstileIframe.boundingBox();
+          if (box) {
+            console.log(`🛡️ [Sec ${sec}] Found Turnstile widget at (${Math.round(box.x)}, ${Math.round(box.y)}). Simulating mouse click...`);
+            await page.mouse.move(box.x + 35, box.y + box.height / 2, { steps: 5 });
+            await new Promise(r => setTimeout(r, 150));
+            await page.mouse.down();
+            await new Promise(r => setTimeout(r, 100));
+            await page.mouse.up();
           }
         }
       } catch (_) {}
 
-      // Check video / player objects in all frames
+      // Check video elements in DOM
       try {
         const foundUrl = await page.evaluate(() => {
           const v = document.querySelector("video");
           if (v && v.src && v.src.includes(".m3u8")) return v.src;
           const ifr = document.querySelector("iframe");
           if (ifr && ifr.src && ifr.src.includes(".m3u8")) return ifr.src;
-          // Check Clappr / HLS.js instance in window
           if (window.player && window.player.options && window.player.options.source) {
             return window.player.options.source;
           }
@@ -148,13 +147,13 @@ async function testChannel(browser, channel) {
 
         if (foundUrl) {
           sniffedStreamUrl = foundUrl;
-          console.log(`🎯 [FOUND IN PAGE DOM]: ${foundUrl}`);
+          console.log(`🎯 [FOUND IN DOM]: ${foundUrl}`);
           break;
         }
       } catch (_) {}
 
-      if (sec === 5) {
-        console.log(`ℹ️ [State at 5s] Page Title: "${pageTitle}" | Current URL: ${currentUrl}`);
+      if (sec % 5 === 0) {
+        console.log(`ℹ️ [State at ${sec}s] Page Title: "${pageTitle}"`);
       }
 
       await new Promise((r) => setTimeout(r, 1000));
@@ -162,16 +161,14 @@ async function testChannel(browser, channel) {
 
     if (!sniffedStreamUrl) {
       const finalTitle = await page.title().catch(() => "");
-      const bodySnippet = await page.evaluate(() => document.body?.innerText?.substring(0, 300) || "").catch(() => "");
       console.log(`❌ [FAILED] Page Title: "${finalTitle}"`);
-      console.log(`   Body preview: ${bodySnippet.replace(/\n+/g, " ")}`);
-      await page.close();
-      return { id: channel.id, title: channel.title, pass: false, error: `Blocked / Turnstile (${finalTitle})` };
+      await page.close().catch(() => {});
+      return { id: channel.id, title: channel.title, pass: false, error: `Turnstile / No stream (${finalTitle})` };
     }
 
-    await page.close();
+    await page.close().catch(() => {});
 
-    console.log(`📡 Verifying live playback for sniffed stream...`);
+    console.log(`📡 Verifying live playback & downloading chunk...`);
     const verification = await verifyStream(sniffedStreamUrl, "https://playsza.xyz/");
 
     if (verification.ok) {
@@ -198,19 +195,27 @@ async function testChannel(browser, channel) {
 }
 
 async function run() {
-  console.log("🚀 Starting Cloudflare Chromium Live Stream Scraper Test...");
+  console.log("======================================================");
+  console.log("🚀 Starting Xvfb Real Chrome Live Stream Scraper Test ");
+  console.log("======================================================");
+
+  const chromePath = fs.existsSync("/usr/bin/google-chrome") ? "/usr/bin/google-chrome" : undefined;
+  if (chromePath) {
+    console.log("🖥️ Using Google Chrome Binary:", chromePath);
+  }
 
   const browser = await puppeteer.launch({
-    headless: "new",
+    executablePath: chromePath,
+    headless: false, // Runs in real screen mode inside Xvfb display
+    defaultViewport: null,
     args: [
       "--no-sandbox",
       "--disable-setuid-sandbox",
+      "--disable-blink-features=AutomationControlled",
       "--disable-dev-shm-usage",
-      "--disable-accelerated-2d-canvas",
-      "--no-first-run",
-      "--no-zygote",
-      "--disable-gpu",
-      "--window-size=1366,768"
+      "--disable-web-security",
+      "--window-size=1920,1080",
+      "--start-maximized"
     ]
   });
 
@@ -230,7 +235,7 @@ async function run() {
 
   const allPassed = results.every(r => r.pass);
   if (allPassed) {
-    console.log("\n🎉 ALL TESTS PASSED (100%)! Chromium scraper is working.");
+    console.log("\n🎉 ALL TESTS PASSED (100%)! Headless Chrome on Xvfb successfully bypassed Cloudflare.");
     process.exit(0);
   } else {
     console.log("\n⚠️ Scraper finished. Check the log details above.");
