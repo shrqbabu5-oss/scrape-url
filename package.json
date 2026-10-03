@@ -1,0 +1,14 @@
+{
+  "name": "live-stream-scraper-test",
+  "version": "1.0.0",
+  "description": "Headless Chromium Scraper Test on GitHub Actions for Cloudflare Live Stream Tokens",
+  "main": "scraper_test.js",
+  "scripts": {
+    "test": "node scraper_test.js"
+  },
+  "dependencies": {
+    "puppeteer-extra": "^3.3.6",
+    "puppeteer-extra-plugin-stealth": "^2.11.2",
+    "puppeteer": "^22.6.0"
+  }
+}
