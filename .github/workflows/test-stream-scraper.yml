@@ -35,7 +35,7 @@ jobs:
 
       - name: "Install Scraper Dependencies"
         run: |
-          npm install && npm install pm2
+          npm install
 
       # 2. Proxy Key & Script Runner
       - name: "Run Real Chrome Scraper on Xvfb"
