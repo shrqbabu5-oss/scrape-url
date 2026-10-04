@@ -91,7 +91,7 @@ function extractM3u8FromHtml(html) {
       .filter(Boolean);
 
     for (const url of observedUrls) {
-      if (/^https?:\\/\\//i.test(url) && /\\.m3u8(?:[?#]|$)/i.test(url)) {
+      if (/^https?:\/\//i.test(url) && /\.m3u8(?:[?#]|$)/i.test(url)) {
         return url;
       }
     }
@@ -235,7 +235,7 @@ async function fetchWithBrowserless(targetUrl) {
     const requestListener = request => {
       try {
         const url = request.url();
-        if (/\\.m3u8(?:[?#]|$)/i.test(url)) {
+        if (/\.m3u8(?:[?#]|$)/i.test(url)) {
           observedM3u8.add(url);
         }
       } catch (_) {}
