@@ -21,7 +21,7 @@ if (!fs.existsSync(PROFILE_DIR)) {
 }
 
 // 2. Webshare / Custom Proxy
-const PROXY_URL = (process.env.PROXY_URL || '').trim();
+const PROXY_URL = (process.env.PROXY_URL || 'https://api.scrapingant.com/v2/general?url=https%3A%2F%2Freplit.com%2F%40shrqbabu%2FGemini-Hub&x-api-key=116130fb585c478bae87b2e22cfecadf&proxy_type=residential&proxy_country=IN').trim();
 
 function getProxyConfig() {
   if (!PROXY_URL) return null;
