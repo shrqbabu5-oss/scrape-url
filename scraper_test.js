@@ -373,7 +373,7 @@ async function updateChannelInSupabase(channel, newStreamUrl) {
 async function runCycle() {
   const hasBrowserless =
     BROWSERLESS_TOKEN &&
-    BROWSERLESS_TOKEN !== "YOUR_BROWSERLESS_TOKEN_HERE";
+    BROWSERLESS_TOKEN !== "2VNbTximwc4XYKC15c29aeecd697096c6785cca3e5ca4aaf4";
 
   const activeEngine = hasBrowserless
     ? "Browserless Puppeteer"
