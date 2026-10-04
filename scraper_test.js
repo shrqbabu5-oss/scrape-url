@@ -1,440 +1,165 @@
-// npm install puppeteer-core
+// ================= CONFIGURATION =================
+
+// 👉 APNI BROWSERLESS TOKEN YAHA DOUBLE QUOTES ME DAALEIN:
+const BROWSERLESS_TOKEN = "2VNbTximwc4XYKC15c29aeecd697096c6785cca3e5ca4aaf4";
+
+// Browserless WebSocket endpoint.
+// Is stream scraper mein cookies ki zarurat nahi hai.
+const BROWSERLESS_WS_ENDPOINT =
+  `wss://production-sfo.browserless.io?token=${encodeURIComponent(BROWSERLESS_TOKEN)}`;
+
+const SUPABASE_URL = "https://exaorbbpvxnogpbvyayx.supabase.co";
+const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV4YW9yYmJwdnhub2dwYnZ5YXl4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkxMjM4MDUsImV4cCI6MjEwNDY5OTgwNX0.mnV03xUfYtG5xFftaNNnkK_S7UkIGPLw5QTqcIf6aWs";
+const TABLE_NAME = "live_channels";
+
+const CHANNELS_TO_UPDATE = [
+  {
+    id: "starsp4",
+    name: "Star Sports 2 (Eng)",
+    pageUrl: "https://playsza.xyz/uembed.php?v=starsp4",
+    referer: "https://playsza.xyz/",
+    language: "English",
+    category: "Cricket"
+  },
+  {
+    id: "willowhd",
+    name: "Willow HD",
+    pageUrl: "https://playsza.xyz/uembed.php?v=hdwillow3c",
+    referer: "https://playsza.xyz/",
+    language: "English",
+    category: "Cricket"
+  },
+  {
+    id: "ten1",
+    name: "Sony Sports 1 HD",
+    pageUrl: "https://playsza.xyz/uembed.php?v=ten1",
+    referer: "https://playsza.xyz/",
+    language: "English",
+    category: "Sports"
+  },
+  {
+    id: "starsp2",
+    name: "Star Sports 2 (Hi)",
+    pageUrl: "https://playsza.xyz/uembed.php?v=starsp2",
+    referer: "https://playsza.xyz/",
+    language: "Hindi",
+    category: "Cricket"
+  }
+];
+
+const REFRESH_INTERVAL_MINUTES = parseInt(process.env.REFRESH_INTERVAL_MINUTES || '45', 10);
+
+// ================= P.A.C.K.E.R UNPACKER =================
+
+function unpackDeanEdwards(scriptText) {
+  try {
+    const match = scriptText.match(/}\s*\('(.*)',\s*(\d+),\s*(\d+),\s*'(.*)'\.split\('\|'\)/);
+    if (!match) return scriptText;
+
+    let [, p, a, c, k] = match;
+    a = parseInt(a, 10);
+    c = parseInt(c, 10);
+    const dict = k.split('|');
+
+    const e = (c) => (c < a ? '' : e(Math.floor(c / a))) + ((c = c % a) > 35 ? String.fromCharCode(c + 29) : c.toString(36));
+
+    while (c--) {
+      if (dict[c]) {
+        p = p.replace(new RegExp('\\b' + e(c) + '\\b', 'g'), dict[c]);
+      }
+    }
+    return p;
+  } catch (_) {
+    return scriptText;
+  }
+}
+
+// ================= HTML STREAM EXTRACTOR =================
+
+function extractM3u8FromHtml(html) {
+  if (!html) return null;
+
+  // Unpack any packed scripts first
+  let cleanHtml = html;
+  if (html.includes('eval(function(p,a,c,k,e,d)')) {
+    cleanHtml = unpackDeanEdwards(html);
+  }
+
+  // 1. Obfuscated joined array pattern: ["h","t","t","p","s", ...].join("")
+  const arrayMatches = cleanHtml.match(/\[\s*["']h["']\s*,\s*["']t["']\s*,\s*["']t["']\s*,\s*["']p["'][\s\S]*?\]\.join\(\s*["']\s*["']\s*\)/gi);
+  if (arrayMatches) {
+    for (const raw of arrayMatches) {
+      try {
+        const arrayStr = raw.replace(/\.join\([\s\S]*?\)/, '').trim();
+        const chars = eval(arrayStr);
+        if (Array.isArray(chars)) {
+          const joined = chars.join('');
+          if (joined.includes('.m3u8')) {
+            return joined;
+          }
+        }
+      } catch (_) {}
+    }
+  }
+
+  // 2. Direct .m3u8 playlist regex match
+  const directMatch = cleanHtml.match(/(https?:\/\/[^"'\s<>\\]+?\.m3u8(?:\?[^"'\s<>\\]+)?)/i);
+  if (directMatch) {
+    return directMatch[1];
+  }
+
+  // 3. Base64 encoded URL match (aHR0cHM6 = https://, aHR0cDov = http://)
+  const base64Matches = cleanHtml.match(/(?:atob\(['"]|['"])(aHR0c[A-Za-z0-9+/=]+)['"]/g);
+  if (base64Matches) {
+    for (const b of base64Matches) {
+      try {
+        const rawB64 = b.replace(/^(atob\(['"]|['"])|['"]$/g, '');
+        const decoded = Buffer.from(rawB64, 'base64').toString('utf-8');
+        if (decoded.includes('.m3u8')) {
+          const m3u8Match = decoded.match(/(https?:\/\/[^"'\s<>\\]+?\.m3u8(?:\?[^"'\s<>\\]+)?)/i);
+          if (m3u8Match) return m3u8Match[1];
+        }
+      } catch (_) {}
+    }
+  }
+
+  // 4. Video chunk (.ts) match -> Reconstruct into master/playlist .m3u8
+  const chunkMatch = cleanHtml.match(/(https?:\/\/[^"'\s<>\\]+?\/hls\/[^"'\s<>\\]+?)-[0-9]+\.ts(\?[^"'\s<>\\]+)?/i);
+  if (chunkMatch) {
+    return `${chunkMatch[1]}.m3u8${chunkMatch[2] || ''}`;
+  }
+
+  return null;
+}
+
+// Find embedded iframe if present
+function findEmbeddedIframe(html) {
+  const match = html.match(/<iframe[^>]+src=["'](https?:\/\/[^"']+)["']/i);
+  return match ? match[1] : null;
+}
+
+// ================= BROWSERLESS FETCHER =================
 
 const puppeteer = require('puppeteer-core');
 
-// ============================================================
-// CONFIG
-// ============================================================
-
-const TARGET_URL = 'https://replit.com/@shrqbabu/Gemini-Hub';
-
-const BROWSERLESS_TOKEN = (
-  process.env.BROWSERLESS_TOKEN || '2VNbTximwc4XYKC15c29aeecd697096c6785cca3e5ca4aaf4'
-).trim();
-
-
-// ============================================================
-
-const REPLIT_COOKIES = [
-    {
-        "domain": "replit.com",
-        "expirationDate": 1821159935,
-        "hostOnly": true,
-        "httpOnly": false,
-        "name": "replit_statsig_stable_id",
-        "path": "/",
-        "sameSite": "lax",
-        "secure": true,
-        "session": false,
-        "storeId": null,
-        "value": "35315901-d49f-4f3b-b69f-5936d38cab15"
-    },
-    {
-        "domain": "replit.com",
-        "expirationDate": 1791731542,
-        "hostOnly": true,
-        "httpOnly": false,
-        "name": "_replit_sid",
-        "path": "/",
-        "sameSite": "lax",
-        "secure": true,
-        "session": false,
-        "storeId": null,
-        "value": "74f048c5-4e40-49aa-9a66-9002a9c68d01"
-    },
-    {
-        "domain": ".replit.com",
-        "expirationDate": 1822662747,
-        "hostOnly": false,
-        "httpOnly": false,
-        "name": "__stripe_mid",
-        "path": "/",
-        "sameSite": "strict",
-        "secure": true,
-        "session": false,
-        "storeId": null,
-        "value": "29d91f36-8495-4b76-ba05-2dc48928dfd31528ad"
-    },
-    {
-        "domain": ".replit.com",
-        "expirationDate": 1791128542.352147,
-        "hostOnly": false,
-        "httpOnly": true,
-        "name": "__cf_bm",
-        "path": "/",
-        "sameSite": "no_restriction",
-        "secure": true,
-        "session": false,
-        "storeId": null,
-        "value": "6XxUqfIILd6jceEJL3dlkhU8NIizk3hzDWqG0NYMhgM-1791126740.1642482-1.0.1.1-QXXl1mkTWVUcaZpOpY.O4iw.QPcjTRR1dd1TRaXjdLBptqY9mDs0yMQojCxSK6o9KTnAo90LXFK5v4sb5Ylir9aJ.MA84JQNhCnxl9KUCFc0oSrQtYwGqWG3aUHEHH.1"
-    },
-    {
-        "domain": "replit.com",
-        "expirationDate": 1791127638.558402,
-        "hostOnly": true,
-        "httpOnly": true,
-        "name": "__Host-session-sig",
-        "path": "/",
-        "sameSite": "lax",
-        "secure": true,
-        "session": false,
-        "storeId": null,
-        "value": "eyJhbGciOiJSUzI1NiIsImtpZCI6ImNmLWp3dC0yMDI2LTA1LTA2LTE4MDMiLCJ0eXAiOiJKV1QifQ.eyJzdWIiOiI2MjQwMzgzOCIsInRjIjoxNzg0NDAyNTE5LCJlbnQiOmZhbHNlLCJwYWlkIjpmYWxzZSwiaWF0IjoxNzkxMTI2NzM1LCJleHAiOjE3OTExMjc2MzV9.TSSxOdGI3T2nrPNgyaN0qvhuvlrB3Fc7hLIwnQaZ1sC-kpymQOkp1zAJbcDdYXpCWL4U2MsNMCmb9KOrlQ9HBUiwvpTkSfbOfyX4kwtmGEMJt1VMRXBM25ME6-4JgYVwzeNSKtcjc6aORbleSbUgp94K1Xaj0qOyh6i5OXiziL2_uXmWPPoWEfZsNf9dR0iUKYCUNu2G6IslUXOyK_NDKoveaBCw2aPQGUH8bzNtUX3mxLNuyxjgUxrMYje4g01TpA1tQtgDGQWW8-1tozSteZfljm9mkAoj_8Ubp71kW5l_Y7AulHol0Duw1sr1D3LKJptGWHlUHN1N8Un-dsw8ew"
-    },
-    {
-        "domain": "replit.com",
-        "expirationDate": 1791127638.558158,
-        "hostOnly": true,
-        "httpOnly": true,
-        "name": "__Host-wr-tc",
-        "path": "/",
-        "sameSite": "lax",
-        "secure": true,
-        "session": false,
-        "storeId": null,
-        "value": "1784402519"
-    },
-    {
-        "domain": ".replit.com",
-        "expirationDate": 1791128547,
-        "hostOnly": false,
-        "httpOnly": false,
-        "name": "__stripe_sid",
-        "path": "/",
-        "sameSite": "strict",
-        "secure": true,
-        "session": false,
-        "storeId": null,
-        "value": "a4fb1932-408c-4c07-a002-cfb961627454ebcf75"
-    },
-    {
-        "domain": ".replit.com",
-        "hostOnly": false,
-        "httpOnly": true,
-        "name": "_cfuvid",
-        "path": "/",
-        "sameSite": "no_restriction",
-        "secure": true,
-        "session": true,
-        "storeId": null,
-        "value": "QvjnR.6yA20JEUf9AFf_DlFrOMYQSM.df0AVebYbi1k-1791123695.2758086-1.0.1.1-e2zz.fDZctemCNbFOIVwtG3qG6Trr8O3M6Yt0ZxTlbc"
-    },
-    {
-        "domain": "replit.com",
-        "expirationDate": 1792334804.815661,
-        "hostOnly": true,
-        "httpOnly": true,
-        "name": "connect.sid",
-        "path": "/",
-        "sameSite": "lax",
-        "secure": true,
-        "session": false,
-        "storeId": null,
-        "value": "eyJhbGciOiJSUzI1NiIsImtpZCI6Iktna0hjZyJ9.eyJpc3MiOiJodHRwczovL3Nlc3Npb24uZmlyZWJhc2UuZ29vZ2xlLmNvbS9yZXBsaXQtd2ViIiwibmFtZSI6InNocnEgYmFidSIsInBpY3R1cmUiOiJodHRwczovL2xoMy5nb29nbGV1c2VyY29udGVudC5jb20vYS9BQ2c4b2NJNm0xcmtWQ0lfUFJidFdqMm14eVExV3FCQzAyWGltbFN3TEszMHVKcVRDbGtscHdcdTAwM2RzOTYtYyIsInJvbGVzIjpbXSwicmVwbGl0X3VzZXJfaWQiOjYyNDAzODM4LCJhdWQiOiJyZXBsaXQtd2ViIiwiYXV0aF90aW1lIjoxNzkwNDA3NTU1LCJ1c2VyX2lkIjoiTWZEWEpOaU80cU1Db3pXN29FeE5GbUdpWXV3MSIsInN1YiI6Ik1mRFhKTmlPNHFNQ296VzdvRXhORm1HaVl1dzEiLCJpYXQiOjE3OTExMjUyMDIsImV4cCI6MTc5MjMzNDgwMiwiZW1haWwiOiJzaHJxYmFidTVAZ21haWwuY29tIiwiZW1haWxfdmVyaWZpZWQiOnRydWUsImZpcmViYXNlIjp7ImlkZW50aXRpZXMiOnsiZ29vZ2xlLmNvbSI6WyIxMTM4MDQxNjQ0NzUzMzc5ODYxMTgiXSwiZW1haWwiOlsic2hycWJhYnU1QGdtYWlsLmNvbSJdfSwic2lnbl9pbl9wcm92aWRlciI6Imdvb2dsZS5jb20ifX0.Xjd7dnBbBoai0bVlMHWyq2cAYbSukssoEhQrMjhrJDSEnp-Tu6ntNxlGTriorRPSktCAVw66zaRJg4YJDLOVS6DUY265zzFr14VbqAhHPHwQNryyaKW6Hv7rhreLyVl4AYhXjXELOy6CQKp-ZuolQbIvpe6qLqzhSUEtR0IcyW9_Lb06LGoEI0qksxEXZ7FrfwddoS-6sHL0ZMObLGwgU5pOP62vGjTfjEfGqWa3MjrUPzW1jRhv6bb2bccyoKzkd4C7wHyEbQVKks6XFati1Vi0e86UJbUcKkCVY5LMvOVSrZgJnzaiZdl0vEw_uWd31bdiIUYYZjuDmKb1OWHLNQ"
-    },
-    {
-        "domain": ".replit.com",
-        "expirationDate": 1797399939.137305,
-        "hostOnly": false,
-        "httpOnly": false,
-        "name": "FPAU",
-        "path": "/",
-        "sameSite": null,
-        "secure": true,
-        "session": false,
-        "storeId": null,
-        "value": "1.2.305952251.1789623938"
-    },
-    {
-        "domain": ".replit.com",
-        "expirationDate": 1825427178.576024,
-        "hostOnly": false,
-        "httpOnly": true,
-        "name": "FPID",
-        "path": "/",
-        "sameSite": null,
-        "secure": true,
-        "session": false,
-        "storeId": null,
-        "value": "FPID2.2.tkAKwpmRziYmC%2BpwSGAyFh%2BWKEHxc8G8o6kNrQbhlYI%3D.1789623938"
-    }
-];
-
-
-if (!BROWSERLESS_TOKEN) {
-  console.error('❌ BROWSERLESS_TOKEN is missing.');
-  process.exit(1);
-}
-
-const BROWSERLESS_WS =
-  `wss://production-sfo.browserless.io?token=${encodeURIComponent(BROWSERLESS_TOKEN)}`;
-
-
-// ============================================================
-// USER AGENT
-// ============================================================
-
-const USER_AGENT =
-  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) ' +
-  'AppleWebKit/537.36 (KHTML, like Gecko) ' +
-  'Chrome/130.0.0.0 Safari/537.36';
-
-// ============================================================
-// HELPERS
-// ============================================================
-
-function sleep(ms) {
-  return new Promise(resolve => setTimeout(resolve, ms));
-}
-
-async function loadCookies(page) {
-  if (!REPLIT_COOKIES.length) {
-    console.log('🍪 No hard-coded cookies configured.');
-    return;
+async function fetchWithBrowserless(targetUrl) {
+  if (
+    !BROWSERLESS_TOKEN ||
+    BROWSERLESS_TOKEN === "YOUR_BROWSERLESS_TOKEN_HERE"
+  ) {
+    throw new Error(
+      "Browserless token not configured. Please set BROWSERLESS_TOKEN."
+    );
   }
 
-  console.log(`🍪 Loading ${REPLIT_COOKIES.length} Replit cookie(s)...`);
-
-  for (const cookie of REPLIT_COOKIES) {
-    try {
-      if (!cookie.name || cookie.value === undefined) {
-        console.log('⚠️ Skipping invalid cookie.');
-        continue;
-      }
-
-      const cleanCookie = {
-        name: String(cookie.name),
-        value: String(cookie.value),
-        domain: cookie.domain || '.replit.com',
-        path: cookie.path || '/'
-      };
-
-      // Only send sameSite if it is actually a valid string
-      if (
-        typeof cookie.sameSite === 'string' &&
-        ['Strict', 'Lax', 'None'].includes(cookie.sameSite)
-      ) {
-        cleanCookie.sameSite = cookie.sameSite;
-      }
-
-      if (typeof cookie.secure === 'boolean') {
-        cleanCookie.secure = cookie.secure;
-      }
-
-      if (typeof cookie.httpOnly === 'boolean') {
-        cleanCookie.httpOnly = cookie.httpOnly;
-      }
-
-      if (
-        typeof cookie.expires === 'number' &&
-        cookie.expires > 0
-      ) {
-        cleanCookie.expires = cookie.expires;
-      }
-
-      await page.setCookie(cleanCookie);
-
-      console.log(`   ✅ ${cleanCookie.name}`);
-
-    } catch (error) {
-      console.log(
-        `   ⚠️ Failed: ${cookie.name} - ${error.message}`
-      );
-    }
-  }
-}
-
-async function getPageState(page) {
-  const title = await page.title().catch(() => '');
-  const url = page.url();
-
-  const bodyText = await page
-    .evaluate(() => document.body?.innerText || '')
-    .catch(() => '');
-
-  const lowerTitle = title.toLowerCase();
-  const lowerBody = bodyText.toLowerCase();
-
-  const challenge =
-    title.includes('Just a moment') ||
-    lowerTitle.includes('checking your browser') ||
-    lowerTitle.includes('attention required') ||
-    lowerBody.includes('checking your browser') ||
-    lowerBody.includes('verify you are human') ||
-    lowerBody.includes('cf-chl') ||
-    lowerBody.includes('cloudflare');
-
-  return {
-    title,
-    url,
-    status: null,
-    challenge
-  };
-}
-
-async function findRunButton(page) {
-  return await page.evaluate(() => {
-    const selectors = [
-      '[action="run_button_used"]',
-      '[data-action="run_button_used"]',
-      '[data-analytics*="run_button_used"]',
-      'button[aria-label*="Run"]',
-      'button[title*="Run"]'
-    ];
-
-    for (const selector of selectors) {
-      const element = document.querySelector(selector);
-
-      if (element) {
-        return {
-          found: true,
-          selector,
-          text: (
-            element.innerText ||
-            element.textContent ||
-            ''
-          ).trim()
-        };
-      }
-    }
-
-    const elements = Array.from(
-      document.querySelectorAll(
-        'button, div[role="button"], a, span'
-      )
-    );
-
-    for (const element of elements) {
-      const text = (
-        element.innerText ||
-        element.textContent ||
-        ''
-      ).trim();
-
-      if (
-        text === 'Run' ||
-        text === '▶ Run' ||
-        text.includes('Run .replit run command')
-      ) {
-        return {
-          found: true,
-          selector: 'text',
-          text
-        };
-      }
-    }
-
-    return {
-      found: false
-    };
-  });
-}
-
-async function clickRunButton(page) {
-  return await page.evaluate(() => {
-    const selectors = [
-      '[action="run_button_used"]',
-      '[data-action="run_button_used"]',
-      '[data-analytics*="run_button_used"]',
-      'button[aria-label*="Run"]',
-      'button[title*="Run"]'
-    ];
-
-    for (const selector of selectors) {
-      const element = document.querySelector(selector);
-
-      if (element) {
-        const button =
-          element.closest('button') || element;
-
-        button.click();
-
-        return {
-          success: true,
-          method: selector,
-          text: (
-            button.innerText ||
-            button.textContent ||
-            ''
-          ).trim()
-        };
-      }
-    }
-
-    const elements = Array.from(
-      document.querySelectorAll(
-        'button, div[role="button"], a, span'
-      )
-    );
-
-    for (const element of elements) {
-      const text = (
-        element.innerText ||
-        element.textContent ||
-        ''
-      ).trim();
-
-      if (
-        text === 'Run' ||
-        text === '▶ Run' ||
-        text.includes('Run .replit run command')
-      ) {
-        const button =
-          element.closest('button') || element;
-
-        button.click();
-
-        return {
-          success: true,
-          method: 'text',
-          text
-        };
-      }
-    }
-
-    return {
-      success: false
-    };
-  });
-}
-
-// ============================================================
-// MAIN
-// ============================================================
-
-async function start() {
   let browser = null;
 
   try {
-    console.log('');
-    console.log('====================================================');
-    console.log('       BROWSERLESS REPLIT AUTO RUNNER               ');
-    console.log('====================================================');
-    console.log('');
-    console.log('Target   :', TARGET_URL);
-    console.log('Browser  : Browserless Remote Chrome');
-    console.log('Cookies  :', REPLIT_COOKIES.length);
-    console.log('');
-
-    // --------------------------------------------------------
-    // CONNECT TO BROWSERLESS
-    // --------------------------------------------------------
-
-    console.log('🔌 Connecting to Browserless...');
+    console.log(`🌐 [Browserless] Opening: ${targetUrl}`);
 
     browser = await puppeteer.connect({
-      browserWSEndpoint: BROWSERLESS_WS,
-      defaultViewport: {
-        width: 1280,
-        height: 720
-      }
+      browserWSEndpoint: BROWSERLESS_WS_ENDPOINT
     });
-
-    console.log('✅ Browserless connected.');
-
-    // --------------------------------------------------------
-    // CREATE PAGE
-    // --------------------------------------------------------
 
     const page = await browser.newPage();
 
@@ -444,172 +169,226 @@ async function start() {
       deviceScaleFactor: 1
     });
 
-    await page.setUserAgent(USER_AGENT);
+    await page.setUserAgent(
+      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) ' +
+      'AppleWebKit/537.36 (KHTML, like Gecko) ' +
+      'Chrome/130.0.0.0 Safari/537.36'
+    );
 
-    // --------------------------------------------------------
-    // COOKIES
-    // --------------------------------------------------------
+    // Images/fonts/media are not needed for M3U8 extraction.
+    // JavaScript, XHR/fetch and document resources remain enabled.
+    await page.setRequestInterception(true);
 
-    await page.goto('https://replit.com', {
+    page.on('request', request => {
+      const resourceType = request.resourceType();
+
+      if (
+        resourceType === 'image' ||
+        resourceType === 'font' ||
+        resourceType === 'media'
+      ) {
+        request.abort().catch(() => {});
+      } else {
+        request.continue().catch(() => {});
+      }
+    });
+
+    const response = await page.goto(targetUrl, {
       waitUntil: 'domcontentloaded',
       timeout: 60000
-    }).catch(() => {});
+    });
 
-    await loadCookies(page);
+    const status = response ? response.status() : 0;
 
-    // --------------------------------------------------------
-    // OPEN TARGET
-    // --------------------------------------------------------
+    console.log(`📄 [Browserless] HTTP Status: ${status}`);
 
-    console.log('');
-    console.log('🌐 Opening Replit Workspace...');
+    // Allow player JavaScript to execute and add the stream URL.
+    await new Promise(resolve => setTimeout(resolve, 4000));
 
-    let response = null;
+    const html = await page.content();
+    const title = await page.title().catch(() => 'No title');
 
-    try {
-      response = await page.goto(TARGET_URL, {
-        waitUntil: 'domcontentloaded',
-        timeout: 60000
-      });
-    } catch (error) {
-      console.log(`⚠️ Navigation warning: ${error.message}`);
-    }
+    console.log(
+      `📄 [Browserless] Title: "${title}" | HTML Length: ${html.length}`
+    );
 
-    if (response) {
-      console.log(
-        `📄 HTTP Status: ${response.status()}`
+    if (status >= 400) {
+      throw new Error(
+        `Browserless target returned HTTP ${status} (${title})`
       );
     }
 
-    await sleep(3000);
-
-    // --------------------------------------------------------
-    // PAGE INFO
-    // --------------------------------------------------------
-
-    const state = await getPageState(page);
-
-    console.log('📄 Current URL :', state.url);
-    console.log('📄 Page title  :', state.title);
-
-    // --------------------------------------------------------
-    // CHALLENGE DETECTION
-    // --------------------------------------------------------
-
-    if (state.challenge) {
-      console.log('');
-      console.log('⚠️ Browser challenge detected.');
-      console.log('');
-      console.log(
-        'The page is requiring a verification/challenge.'
-      );
-      console.log(
-        'This script will NOT attempt to automatically solve it.'
-      );
-      console.log('');
-      console.log('Stopping safely.');
-      console.log('');
-
-      process.exitCode = 2;
-      return;
-    }
-
-    // --------------------------------------------------------
-    // RUN BUTTON SEARCH
-    // --------------------------------------------------------
-
-    console.log('');
-    console.log('🔎 Looking for Replit Run button...');
-    console.log('');
-
-    let clickedSuccess = false;
-
-    // 15 attempts × 8 seconds = ~2 minutes
-    for (let attempt = 1; attempt <= 15; attempt++) {
-
-      console.log(
-        `[${new Date().toLocaleTimeString()}] ` +
-        `Checking Run button (${attempt}/15)...`
-      );
-
-      // Check if page became a challenge later
-      const currentState = await getPageState(page);
-
-      if (currentState.challenge) {
-        console.log('');
-        console.log('⚠️ Browser challenge appeared.');
-        console.log('Stopping safely.');
-        break;
-      }
-
-      const button = await findRunButton(page);
-
-      if (button.found) {
-        console.log(
-          `✅ Run button found: ${button.text || button.selector}`
-        );
-
-        const clicked = await clickRunButton(page);
-
-        if (clicked.success) {
-          console.log('');
-          console.log(
-            `🚀 SUCCESS: Run button clicked!`
-          );
-          console.log(
-            `   Method: ${clicked.method}`
-          );
-
-          clickedSuccess = true;
-
-          console.log('');
-          console.log(
-            '⏳ Waiting 25 seconds for Replit container...'
-          );
-
-          await sleep(25000);
-
-          break;
-        }
-      }
-
-      await sleep(8000);
-    }
-
-    // --------------------------------------------------------
-    // RESULT
-    // --------------------------------------------------------
-
-    console.log('');
-
-    if (clickedSuccess) {
-      console.log(
-        '✅ Workflow completed successfully.'
-      );
-    } else {
-      console.log(
-        '⚠️ Run button was not detected.'
-      );
-      console.log(
-        'The page may require authentication, '
-        + 'a challenge may be present, or the UI changed.'
+    if (!html || html.length < 100) {
+      throw new Error(
+        `Browserless returned an empty/very small page (${html.length} bytes)`
       );
     }
 
-  } catch (error) {
-    console.error('');
-    console.error('❌ ERROR');
-    console.error(error);
-    process.exitCode = 1;
+    return html;
 
   } finally {
     if (browser) {
       try {
         await browser.close();
-        console.log('🔌 Browserless connection closed.');
       } catch (_) {}
     }
   }
 }
 
-start();
+// ================= FETCH DISPATCHER =================
+
+async function fetchPageHtml(targetUrl) {
+  return await fetchWithBrowserless(targetUrl);
+}
+
+// ================= SUPABASE SYNC (PATCH / INSERT) =================
+
+async function updateChannelInSupabase(channel, newStreamUrl) {
+  try {
+    const patchUrl = `${SUPABASE_URL}/rest/v1/${TABLE_NAME}?id=eq.${channel.id}`;
+
+    const patchRes = await fetch(patchUrl, {
+      method: 'PATCH',
+      headers: {
+        'apikey': SUPABASE_KEY,
+        'Authorization': `Bearer ${SUPABASE_KEY}`,
+        'Content-Type': 'application/json',
+        'Prefer': 'return=representation'
+      },
+      body: JSON.stringify({
+        stream_url: newStreamUrl,
+        referer: channel.referer || 'https://playsza.xyz/'
+      })
+    });
+
+    const patchData = await patchRes.json().catch(() => []);
+
+    if (patchRes.ok && Array.isArray(patchData) && patchData.length > 0) {
+      console.log(`✅ [Supabase] Updated '${channel.id}' (${channel.name}) stream_url successfully!`);
+      return;
+    }
+
+    console.log(`ℹ️ [Supabase] Row '${channel.id}' not found. Creating fresh row...`);
+    const insertUrl = `${SUPABASE_URL}/rest/v1/${TABLE_NAME}`;
+    const insertRes = await fetch(insertUrl, {
+      method: 'POST',
+      headers: {
+        'apikey': SUPABASE_KEY,
+        'Authorization': `Bearer ${SUPABASE_KEY}`,
+        'Content-Type': 'application/json',
+        'Prefer': 'resolution=merge-duplicates'
+      },
+      body: JSON.stringify({
+        id: channel.id,
+        title: channel.name,
+        stream_url: newStreamUrl,
+        referer: channel.referer || 'https://playsza.xyz/',
+        poster_url: channel.poster_url || 'https://crichd.mobile/assets/channels/willow.webp',
+        category: channel.category || 'Cricket',
+        language: channel.language || 'Hindi',
+        quality: '1080p HD',
+        plot: `Live ${channel.name} Stream`,
+        is_active: true,
+        sort_order: 1
+      })
+    });
+
+    if (insertRes.ok) {
+      console.log(`✅ [Supabase] Inserted new row for '${channel.id}' (${channel.name})!`);
+    } else {
+      console.error(`❌ [Supabase Error]:`, await insertRes.text());
+    }
+
+  } catch (err) {
+    console.error(`❌ [Supabase Network Error]:`, err.message);
+  }
+}
+
+// ================= WORKER CYCLE =================
+
+async function runCycle() {
+  const hasBrowserless =
+    BROWSERLESS_TOKEN &&
+    BROWSERLESS_TOKEN !== "YOUR_BROWSERLESS_TOKEN_HERE";
+
+  const activeEngine = hasBrowserless
+    ? "Browserless Puppeteer"
+    : "None";
+
+  console.log(`\n====================================================`);
+  console.log(`   HTTP STREAM TOKEN SCRAPER (CYCLE: ${new Date().toLocaleTimeString()})   `);
+  console.log(`   Engine: ${activeEngine}`);
+  console.log(`====================================================`);
+
+  if (!hasBrowserless) {
+    console.error("❌ Browserless token not configured!");
+    console.error(
+      "👉 Please open http-streams.js and replace 'YOUR_BROWSERLESS_TOKEN_HERE' with your actual Browserless token."
+    );
+    return;
+  }
+
+  for (const ch of CHANNELS_TO_UPDATE) {
+    console.log(`\n>>> [${ch.name}] Fetching: ${ch.pageUrl}`);
+
+    try {
+      let html = await fetchPageHtml(ch.pageUrl);
+      let streamUrl = extractM3u8FromHtml(html);
+
+      // If direct stream not found, check for an embedded iframe.
+      if (!streamUrl) {
+        const iframeUrl = findEmbeddedIframe(html);
+
+        if (iframeUrl && iframeUrl !== ch.pageUrl) {
+          console.log(
+            `👉 [${ch.id}] Found embedded iframe: ${iframeUrl}. Fetching inner frame...`
+          );
+
+          const iframeHtml = await fetchPageHtml(iframeUrl);
+          streamUrl = extractM3u8FromHtml(iframeHtml);
+        }
+      }
+
+      if (streamUrl) {
+        console.log(
+          `>>> [${ch.id}] 🎯 Captured M3U8 -> ${streamUrl.slice(0, 110)}...`
+        );
+
+        await updateChannelInSupabase(ch, streamUrl);
+      } else {
+        const pageTitleMatch = html.match(/<title>([^<]+)<\/title>/i);
+        const pageTitle = pageTitleMatch
+          ? pageTitleMatch[1]
+          : 'No title';
+
+        console.error(
+          `⚠️ [${ch.name}] Could not extract M3U8 ` +
+          `(HTML Length: ${html.length}, Title: "${pageTitle}").`
+        );
+
+        if (html.length < 500) {
+          console.log(`ℹ️ [Debug Preview]:`, html.trim());
+        }
+      }
+
+    } catch (err) {
+      console.error(
+        `❌ [${ch.name}] Error during extraction:`,
+        err.message
+      );
+    }
+
+    // Brief delay between channels.
+    await new Promise(r => setTimeout(r, 2000));
+  }
+
+  console.log(
+    `\n>>> Cycle completed. Next run in ${REFRESH_INTERVAL_MINUTES} minutes.`
+  );
+}
+
+// 1. Run immediately
+runCycle();
+
+// 2. Schedule every N minutes
+setInterval(runCycle, REFRESH_INTERVAL_MINUTES * 60 * 1000);
