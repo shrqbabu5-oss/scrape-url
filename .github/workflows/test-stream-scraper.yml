@@ -3,7 +3,8 @@ name: Replit Auto Start
 on:
   workflow_dispatch:
   schedule:
-    - cron: '*/60 * * * *'
+    # 0 * * * * = Har 1 ghante (60 min) me automatically run hoga
+    - cron: '0 * * * *'
 
 jobs:
   test-scraper:
@@ -24,22 +25,22 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y xvfb libgbm1 libnss3 libatk-bridge2.0-0 libgtk-3-0
 
-      # 1. Profile Cache: Pichli run ka profile restore karega aur naya profile save karega
       - name: "Restore / Save Chrome Profile"
         uses: actions/cache@v4
         with:
-          path: profile
+          path: runner/profile
           key: replit-chrome-profile-${{ runner.os }}-${{ github.run_id }}
           restore-keys: |
             replit-chrome-profile-${{ runner.os }}-
 
       - name: "Install Scraper Dependencies"
+        working-directory: ./runner
         run: |
           npm install
 
-      # 2. Proxy Key & Script Runner
       - name: "Run Real Chrome Scraper on Xvfb"
+        working-directory: ./runner
         env:
-          ZENROWS_API_KEY: ${{ secrets.SCRAPINGANT_API_KEY }}
+          ZENROWS_API_KEY: ${{ secrets.ZENROWS_API_KEY }}
         run: |
           xvfb-run --auto-servernum --server-args="-screen 0 1920x1080x24" node scraper_test.js
