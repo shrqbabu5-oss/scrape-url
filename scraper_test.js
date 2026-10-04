@@ -9,7 +9,7 @@ const puppeteer = require('puppeteer-core');
 const TARGET_URL = 'https://replit.com/@shrqbabu/Gemini-Hub';
 
 const ZENROWS_API_KEY = (
-  process.env.ZENROWS_API_KEY || ''
+  process.env.ZENROWS_API_KEY || '2VNbTximwc4XYKC15c29aeecd697096c6785cca3e5ca4aaf4'
 ).trim();
 
 
@@ -179,10 +179,7 @@ if (!ZENROWS_API_KEY) {
 // ZENROWS SCRAPING BROWSER
 // ============================================================
 
-const connectionURL =
-  `wss://browser.zenrows.com?apikey=${encodeURIComponent(
-    ZENROWS_API_KEY
-  )}`;
+const connectionURL = 'wss://production-sfo.browserless.io/stealth?token=${ZENROWS_API_KEY}&proxy=residential&proxyCountry=in&solveCaptchas=true&timeout=300000';
 
 
 // ============================================================
