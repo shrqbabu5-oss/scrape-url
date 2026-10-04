@@ -18,7 +18,7 @@ if (!fs.existsSync(PROFILE_DIR)) {
 }
 
 // 2. Webshare Proxy (Format: http://username:password@ip:port)
-const PROXY_URL = process.env.PROXY_URL || 'http://shrqbabu:shariq98083@45.38.107.97:1460';
+const PROXY_URL = 'http://shrqbabu-rotate:shariq98083@p.webshare.io:80';
 
 function getProxyConfig() {
   if (!PROXY_URL || PROXY_URL.trim() === '') return null;
