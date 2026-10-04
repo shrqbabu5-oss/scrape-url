@@ -9,7 +9,7 @@ const puppeteer = require('puppeteer-core');
 const TARGET_URL = 'https://replit.com/@shrqbabu/Gemini-Hub';
 
 const ZENROWS_API_KEY = (
-  process.env.ZENROWS_API_KEY || 'abe413f6bb78bf220f1f4ea1bed7fa87f2fd5bc8'
+  process.env.ZENROWS_API_KEY || ''
 ).trim();
 
 
