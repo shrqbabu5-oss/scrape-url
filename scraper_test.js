@@ -8,28 +8,11 @@ const puppeteer = require('puppeteer-core');
 
 const TARGET_URL = 'https://replit.com/@shrqbabu/Gemini-Hub';
 
-const ZENROWS_API_KEY = (
-  process.env.ZENROWS_API_KEY || '2VNbTximwc4XYKC15c29aeecd697096c6785cca3e5ca4aaf4'
+const BROWSERLESS_TOKEN = (
+  process.env.BROWSERLESS_TOKEN || '2VNbTximwc4XYKC15c29aeecd697096c6785cca3e5ca4aaf4'
 ).trim();
 
 
-// ============================================================
-// HARD-CODED COOKIES
-// ============================================================
-//
-// Apni Replit cookies yahan paste karo.
-//
-// Example:
-//
-// const REPLIT_COOKIES = [
-//   {
-//     name: 'cookie_name',
-//     value: 'cookie_value',
-//     domain: '.replit.com',
-//     path: '/'
-//   }
-// ];
-//
 // ============================================================
 
 const REPLIT_COOKIES = [
@@ -165,122 +148,249 @@ const REPLIT_COOKIES = [
 ];
 
 
-// ============================================================
-// VALIDATE CONFIG
-// ============================================================
-
-if (!ZENROWS_API_KEY) {
-  console.error('❌ ZENROWS_API_KEY is missing.');
+if (!BROWSERLESS_TOKEN) {
+  console.error('❌ BROWSERLESS_TOKEN is missing.');
   process.exit(1);
 }
 
-
-// ============================================================
-// ZENROWS SCRAPING BROWSER
-// ============================================================
-
-const connectionURL = 'wss://production-sfo.browserless.io/stealth?token=${ZENROWS_API_KEY}&proxy=residential&proxyCountry=in&solveCaptchas=true&timeout=300000';
+const BROWSERLESS_WS =
+  `wss://production-sfo.browserless.io?token=${encodeURIComponent(BROWSERLESS_TOKEN)}`;
 
 
 // ============================================================
-// LOAD COOKIES
+// USER AGENT
 // ============================================================
+
+const USER_AGENT =
+  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) ' +
+  'AppleWebKit/537.36 (KHTML, like Gecko) ' +
+  'Chrome/130.0.0.0 Safari/537.36';
+
+// ============================================================
+// HELPERS
+// ============================================================
+
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
 
 async function loadCookies(page) {
-
-  if (
-    !Array.isArray(REPLIT_COOKIES) ||
-    REPLIT_COOKIES.length === 0
-  ) {
+  if (!REPLIT_COOKIES.length) {
     console.log('🍪 No hard-coded cookies configured.');
     return;
   }
 
-  try {
+  console.log(`🍪 Loading ${REPLIT_COOKIES.length} Replit cookie(s)...`);
 
-    const cookies = REPLIT_COOKIES
-      .filter(cookie =>
-        cookie &&
-        cookie.name &&
-        cookie.value
-      )
-      .map(cookie => ({
-        name: String(cookie.name),
-        value: String(cookie.value),
+  for (const cookie of REPLIT_COOKIES) {
+    try {
+      if (!cookie.name || cookie.value === undefined) {
+        console.log(`⚠️ Skipping invalid cookie.`);
+        continue;
+      }
+
+      await page.setCookie({
+        ...cookie,
         domain: cookie.domain || '.replit.com',
-        path: cookie.path || '/',
-        ...(cookie.httpOnly !== undefined
-          ? { httpOnly: Boolean(cookie.httpOnly) }
-          : {}),
-        ...(cookie.secure !== undefined
-          ? { secure: Boolean(cookie.secure) }
-          : {}),
-        ...(cookie.sameSite
-          ? { sameSite: cookie.sameSite }
-          : {}),
-        ...(cookie.expires
-          ? { expires: Number(cookie.expires) }
-          : {})
-      }));
+        path: cookie.path || '/'
+      });
 
-    if (!cookies.length) {
-      console.log('⚠️ No valid cookies found.');
-      return;
+      console.log(`   ✅ ${cookie.name}`);
+    } catch (error) {
+      console.log(
+        `   ⚠️ Failed: ${cookie.name} - ${error.message}`
+      );
     }
-
-    await page.setCookie(...cookies);
-
-    console.log(
-      `🍪 ${cookies.length} Replit cookie(s) loaded.`
-    );
-
-  } catch (error) {
-
-    console.error(
-      '❌ Cookie loading failed:',
-      error.message
-    );
-
   }
 }
 
+async function getPageState(page) {
+  const title = await page.title().catch(() => '');
+  const url = page.url();
+
+  const bodyText = await page
+    .evaluate(() => document.body?.innerText || '')
+    .catch(() => '');
+
+  const lowerTitle = title.toLowerCase();
+  const lowerBody = bodyText.toLowerCase();
+
+  const challenge =
+    title.includes('Just a moment') ||
+    lowerTitle.includes('checking your browser') ||
+    lowerTitle.includes('attention required') ||
+    lowerBody.includes('checking your browser') ||
+    lowerBody.includes('verify you are human') ||
+    lowerBody.includes('cf-chl') ||
+    lowerBody.includes('cloudflare');
+
+  return {
+    title,
+    url,
+    status: null,
+    challenge
+  };
+}
+
+async function findRunButton(page) {
+  return await page.evaluate(() => {
+    const selectors = [
+      '[action="run_button_used"]',
+      '[data-action="run_button_used"]',
+      '[data-analytics*="run_button_used"]',
+      'button[aria-label*="Run"]',
+      'button[title*="Run"]'
+    ];
+
+    for (const selector of selectors) {
+      const element = document.querySelector(selector);
+
+      if (element) {
+        return {
+          found: true,
+          selector,
+          text: (
+            element.innerText ||
+            element.textContent ||
+            ''
+          ).trim()
+        };
+      }
+    }
+
+    const elements = Array.from(
+      document.querySelectorAll(
+        'button, div[role="button"], a, span'
+      )
+    );
+
+    for (const element of elements) {
+      const text = (
+        element.innerText ||
+        element.textContent ||
+        ''
+      ).trim();
+
+      if (
+        text === 'Run' ||
+        text === '▶ Run' ||
+        text.includes('Run .replit run command')
+      ) {
+        return {
+          found: true,
+          selector: 'text',
+          text
+        };
+      }
+    }
+
+    return {
+      found: false
+    };
+  });
+}
+
+async function clickRunButton(page) {
+  return await page.evaluate(() => {
+    const selectors = [
+      '[action="run_button_used"]',
+      '[data-action="run_button_used"]',
+      '[data-analytics*="run_button_used"]',
+      'button[aria-label*="Run"]',
+      'button[title*="Run"]'
+    ];
+
+    for (const selector of selectors) {
+      const element = document.querySelector(selector);
+
+      if (element) {
+        const button =
+          element.closest('button') || element;
+
+        button.click();
+
+        return {
+          success: true,
+          method: selector,
+          text: (
+            button.innerText ||
+            button.textContent ||
+            ''
+          ).trim()
+        };
+      }
+    }
+
+    const elements = Array.from(
+      document.querySelectorAll(
+        'button, div[role="button"], a, span'
+      )
+    );
+
+    for (const element of elements) {
+      const text = (
+        element.innerText ||
+        element.textContent ||
+        ''
+      ).trim();
+
+      if (
+        text === 'Run' ||
+        text === '▶ Run' ||
+        text.includes('Run .replit run command')
+      ) {
+        const button =
+          element.closest('button') || element;
+
+        button.click();
+
+        return {
+          success: true,
+          method: 'text',
+          text
+        };
+      }
+    }
+
+    return {
+      success: false
+    };
+  });
+}
 
 // ============================================================
 // MAIN
 // ============================================================
 
 async function start() {
-
-  console.log('====================================================');
-  console.log('          ZENROWS REPLIT AUTO RUNNER                ');
-  console.log('====================================================');
-
-  console.log('Target :', TARGET_URL);
-  console.log('Browser: ZenRows Scraping Browser');
-  console.log('Proxy  : ZenRows Remote Browser');
-  console.log('====================================================');
-  console.log('');
-
-  let browser;
+  let browser = null;
 
   try {
+    console.log('');
+    console.log('====================================================');
+    console.log('       BROWSERLESS REPLIT AUTO RUNNER               ');
+    console.log('====================================================');
+    console.log('');
+    console.log('Target   :', TARGET_URL);
+    console.log('Browser  : Browserless Remote Chrome');
+    console.log('Cookies  :', REPLIT_COOKIES.length);
+    console.log('');
 
     // --------------------------------------------------------
-    // CONNECT TO ZENROWS REMOTE CHROME
+    // CONNECT TO BROWSERLESS
     // --------------------------------------------------------
 
-    console.log(
-      '🔌 Connecting to ZenRows Scraping Browser...'
-    );
+    console.log('🔌 Connecting to Browserless...');
 
     browser = await puppeteer.connect({
-      browserWSEndpoint: connectionURL
+      browserWSEndpoint: BROWSERLESS_WS,
+      defaultViewport: {
+        width: 1280,
+        height: 720
+      }
     });
 
-    console.log(
-      '✅ Connected to ZenRows browser.'
-    );
-
+    console.log('✅ Browserless connected.');
 
     // --------------------------------------------------------
     // CREATE PAGE
@@ -290,370 +400,176 @@ async function start() {
 
     await page.setViewport({
       width: 1280,
-      height: 720
+      height: 720,
+      deviceScaleFactor: 1
     });
 
-
-    await page.setUserAgent(
-      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) ' +
-      'AppleWebKit/537.36 (KHTML, like Gecko) ' +
-      'Chrome/130.0.0.0 Safari/537.36'
-    );
-
+    await page.setUserAgent(USER_AGENT);
 
     // --------------------------------------------------------
     // COOKIES
     // --------------------------------------------------------
 
+    await page.goto('https://replit.com', {
+      waitUntil: 'domcontentloaded',
+      timeout: 60000
+    }).catch(() => {});
+
     await loadCookies(page);
 
-
     // --------------------------------------------------------
-    // OPEN REPLIT
+    // OPEN TARGET
     // --------------------------------------------------------
 
     console.log('');
-    console.log('🌐 Opening Replit...');
+    console.log('🌐 Opening Replit Workspace...');
 
-    const response = await page.goto(
-      TARGET_URL,
-      {
+    let response = null;
+
+    try {
+      response = await page.goto(TARGET_URL, {
         waitUntil: 'domcontentloaded',
         timeout: 60000
-      }
-    ).catch(error => {
-
-      console.log(
-        '⚠️ Navigation error:',
-        error.message
-      );
-
-      return null;
-    });
-
-
-    // Allow UI to render
-    await new Promise(resolve =>
-      setTimeout(resolve, 5000)
-    );
-
-
-    // --------------------------------------------------------
-    // PAGE INFORMATION
-    // --------------------------------------------------------
-
-    const statusCode = response
-      ? response.status()
-      : null;
-
-    const currentUrl = page.url();
-
-    const title = await page
-      .title()
-      .catch(() => '');
-
-
-    console.log('');
-    console.log('📄 HTTP Status:', statusCode);
-    console.log('📄 Current URL:', currentUrl);
-    console.log('📄 Page title :', title);
-    console.log('');
-
-
-    // --------------------------------------------------------
-    // LOGIN CHECK
-    // --------------------------------------------------------
-
-    if (
-      currentUrl.includes('/login') ||
-      currentUrl.includes('/signup') ||
-      currentUrl.includes('/auth')
-    ) {
-
-      console.log(
-        '❌ Replit session is not authenticated.'
-      );
-
-      console.log(
-        '   Check your hard-coded cookies.'
-      );
-
-      return;
+      });
+    } catch (error) {
+      console.log(`⚠️ Navigation warning: ${error.message}`);
     }
 
+    if (response) {
+      console.log(
+        `📄 HTTP Status: ${response.status()}`
+      );
+    }
+
+    await sleep(3000);
 
     // --------------------------------------------------------
-    // SECURITY CHALLENGE DETECTION
+    // PAGE INFO
     // --------------------------------------------------------
 
-    const lowerTitle = title.toLowerCase();
+    const state = await getPageState(page);
 
-    if (
-      statusCode === 403 &&
-      (
-        lowerTitle.includes('just a moment') ||
-        lowerTitle.includes('checking your browser') ||
-        lowerTitle.includes('security')
-      )
-    ) {
+    console.log('📄 Current URL :', state.url);
+    console.log('📄 Page title  :', state.title);
 
+    // --------------------------------------------------------
+    // CHALLENGE DETECTION
+    // --------------------------------------------------------
+
+    if (state.challenge) {
+      console.log('');
+      console.log('⚠️ Browser challenge detected.');
       console.log('');
       console.log(
-        '⚠️ Security challenge detected.'
+        'The page is requiring a verification/challenge.'
       );
-
       console.log(
-        '   Run button is not available yet.'
+        'This script will NOT attempt to automatically solve it.'
       );
-
-      return;
-    }
-
-
-    // --------------------------------------------------------
-    // 404 CHECK
-    // --------------------------------------------------------
-
-    if (
-      statusCode === 404 ||
-      lowerTitle.includes('404')
-    ) {
-
       console.log('');
-      console.log(
-        '❌ Replit returned 404.'
-      );
+      console.log('Stopping safely.');
+      console.log('');
 
-      console.log(
-        '   Check TARGET_URL.'
-      );
-
+      process.exitCode = 2;
       return;
     }
 
-
     // --------------------------------------------------------
-    // FIND RUN BUTTON
+    // RUN BUTTON SEARCH
     // --------------------------------------------------------
 
-    console.log(
-      '🔎 Looking for Run button...\n'
-    );
+    console.log('');
+    console.log('🔎 Looking for Replit Run button...');
+    console.log('');
 
     let clickedSuccess = false;
 
-
-    // Maximum 15 attempts
-    for (
-      let attempt = 1;
-      attempt <= 15;
-      attempt++
-    ) {
+    // 15 attempts × 8 seconds = ~2 minutes
+    for (let attempt = 1; attempt <= 15; attempt++) {
 
       console.log(
         `[${new Date().toLocaleTimeString()}] ` +
         `Checking Run button (${attempt}/15)...`
       );
 
+      // Check if page became a challenge later
+      const currentState = await getPageState(page);
 
-      const result = await page.evaluate(() => {
-
-        // ----------------------------------------------
-        // Direct selectors
-        // ----------------------------------------------
-
-        const selectors = [
-          '[action="run_button_used"]',
-          '[data-action="run_button_used"]',
-          '[data-analytics*="run_button_used"]',
-          'button[aria-label*="Run"]'
-        ];
-
-
-        for (const selector of selectors) {
-
-          const element =
-            document.querySelector(selector);
-
-          if (element) {
-
-            const button =
-              element.closest('button') || element;
-
-            if (!button.disabled) {
-
-              button.click();
-
-              return {
-                success: true,
-                method: selector,
-                text: (
-                  button.innerText ||
-                  button.textContent ||
-                  ''
-                ).trim()
-              };
-
-            }
-          }
-        }
-
-
-        // ----------------------------------------------
-        // Text based detection
-        // ----------------------------------------------
-
-        const elements = Array.from(
-          document.querySelectorAll(
-            'button, div[role="button"], a'
-          )
-        );
-
-
-        for (const element of elements) {
-
-          const text = (
-            element.innerText ||
-            element.textContent ||
-            ''
-          ).trim();
-
-
-          if (
-            text === 'Run' ||
-            text === '▶ Run' ||
-            text.includes(
-              'Run .replit run command'
-            )
-          ) {
-
-            const button =
-              element.closest('button') || element;
-
-            if (!button.disabled) {
-
-              button.click();
-
-              return {
-                success: true,
-                method: 'text',
-                text
-              };
-
-            }
-          }
-        }
-
-
-        return {
-          success: false
-        };
-
-      });
-
-
-      // ------------------------------------------------------
-      // SUCCESS
-      // ------------------------------------------------------
-
-      if (result.success) {
-
+      if (currentState.challenge) {
         console.log('');
-        console.log(
-          '🚀 SUCCESS: Run button clicked!'
-        );
-
-        console.log(
-          'Method:',
-          result.method
-        );
-
-        console.log(
-          'Text:',
-          result.text
-        );
-
-
-        clickedSuccess = true;
-
-
-        console.log('');
-        console.log(
-          '⏳ Waiting 25 seconds for container...'
-        );
-
-
-        await new Promise(resolve =>
-          setTimeout(resolve, 25000)
-        );
-
-
+        console.log('⚠️ Browser challenge appeared.');
+        console.log('Stopping safely.');
         break;
       }
 
+      const button = await findRunButton(page);
 
-      // Wait 8 seconds
-      await new Promise(resolve =>
-        setTimeout(resolve, 8000)
-      );
+      if (button.found) {
+        console.log(
+          `✅ Run button found: ${button.text || button.selector}`
+        );
 
+        const clicked = await clickRunButton(page);
+
+        if (clicked.success) {
+          console.log('');
+          console.log(
+            `🚀 SUCCESS: Run button clicked!`
+          );
+          console.log(
+            `   Method: ${clicked.method}`
+          );
+
+          clickedSuccess = true;
+
+          console.log('');
+          console.log(
+            '⏳ Waiting 25 seconds for Replit container...'
+          );
+
+          await sleep(25000);
+
+          break;
+        }
+      }
+
+      await sleep(8000);
     }
-
 
     // --------------------------------------------------------
     // RESULT
     // --------------------------------------------------------
 
+    console.log('');
+
     if (clickedSuccess) {
-
-      console.log('');
       console.log(
-        '✅ Replit workflow completed successfully.'
+        '✅ Workflow completed successfully.'
       );
-
     } else {
-
-      console.log('');
       console.log(
         '⚠️ Run button was not detected.'
       );
-
+      console.log(
+        'The page may require authentication, '
+        + 'a challenge may be present, or the UI changed.'
+      );
     }
 
   } catch (error) {
-
     console.error('');
-    console.error(
-      '❌ Fatal Error:'
-    );
-
+    console.error('❌ ERROR');
     console.error(error);
-
     process.exitCode = 1;
 
   } finally {
-
-    // --------------------------------------------------------
-    // CLOSE ZENROWS BROWSER
-    // --------------------------------------------------------
-
     if (browser) {
-
-      await browser
-        .close()
-        .catch(() => {});
-
-      console.log('');
-      console.log(
-        '🔌 ZenRows browser connection closed.'
-      );
+      try {
+        await browser.close();
+        console.log('🔌 Browserless connection closed.');
+      } catch (_) {}
     }
   }
 }
-
-
-// ============================================================
-// START
-// ============================================================
 
 start();
