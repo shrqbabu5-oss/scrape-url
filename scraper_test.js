@@ -1,6 +1,7 @@
 const puppeteer = require('puppeteer-core');
 const fs = require('fs');
 const path = require('path');
+const { URL } = require('url');
 
 const TARGET_URL = 'https://replit.com/@shrqbabu/Gemini-Hub';
 
@@ -10,14 +11,30 @@ const CHROMIUM_PATH = fs.existsSync('/opt/google/chrome/chrome')
 
 const REPLIT_COOKIE = 'eyJhbGciOiJSUzI1NiIsImtpZCI6Iktna0hjZyJ9.eyJpc3MiOiJodHRwczovL3Nlc3Npb24uZmlyZWJhc2UuZ29vZ2xlLmNvbS9yZXBsaXQtd2ViIiwibmFtZSI6InNocnEgYmFidSIsInBpY3R1cmUiOiJodHRwczovL2xoMy5nb29nbGV1c2VyY29udGVudC5jb20vYS9BQ2c4b2NJNm0xcmtWQ0lfUFJidFdqMm14eVExV3FCQzAyWGltbFN3TEszMHVKcVRDbGtscHdcdTAwM2RzOTYtYyIsInJvbGVzIjpbXSwicmVwbGl0X3VzZXJfaWQiOjYyNDAzODM4LCJhdWQiOiJyZXBsaXQtd2ViIiwiYXV0aF90aW1lIjoxNzkwNDA3NTU1LCJ1c2VyX2lkIjoiTWZEWEpOaU80cU1Db3pXN29FeE5GbUdpWXV3MSIsInN1YiI6Ik1mRFhKTmlPNHFNQ296VzdvRXhORm1HaVl1dzEiLCJpYXQiOjE3OTA0MTg3ODYsImV4cCI6MTc5MTYyODM4NiwiZW1haWwiOiJzaHJxYmFidTVAZ21haWwuY29tIiwiZW1haWxfdmVyaWZpZWQiOnRydWUsImZpcmViYXNlIjp7ImlkZW50aXRpZXMiOnsiZ29vZ2xlLmNvbSI6WyIxMTM4MDQxNjQ0NzUzMzc5ODYxMTgiXSwiZW1haWwiOlsic2hycWJhYnU1QGdtYWlsLmNvbSJdfSwic2lnbl9pbl9wcm92aWRlciI6Imdvb2dsZS5jb20ifX0.R4k23nccjgrJAWKR4Uco7q2OrTM_gVVA-hrMJl0N9z_7ZMaVdZuc1KAEG7PDMSeA4LFI8WErUG3whML6cC3SUgD8pryZYP0I79ED7v_OCD3mt9khZl0Gh24bLLIc9oNI1_14s54O9nq2VC4MxtIA7bU7uqlKGKlJ0aw_1eeJpa15Aj_0HdImL15urxrBM3GsZjSYPypP5lRMJPmQz0EJJd_FX8od-3uNyJ_nY8ji40brivUmevi3e0hjBYdDRpUexHLYPCMOp-riYTCVz3Mjh0dCcw22TV8t2QZazJJUu_CWfERd004egBcJRxhg8Q5ic-n2utXxBr2LDxWmDpIIeQ';
 
-// 1. Profile Directory
+// 1. Profile Directory (Save Profile)
 const PROFILE_DIR = path.join(__dirname, 'profile');
 if (!fs.existsSync(PROFILE_DIR)) {
   fs.mkdirSync(PROFILE_DIR, { recursive: true });
 }
 
-// 2. ZenRows Proxy
-const ZENROWS_API_KEY = (process.env.ZENROWS_API_KEY || '').trim();
+// 2. Webshare Proxy (Format: http://username:password@ip:port)
+const PROXY_URL = process.env.PROXY_URL || 'http://sh:sha@31.59.20';
+
+function getProxyConfig() {
+  if (!PROXY_URL || PROXY_URL.trim() === '') return null;
+  try {
+    let p = PROXY_URL.trim();
+    if (!p.includes('://')) p = 'http://' + p;
+    const parsed = new URL(p);
+    return {
+      server: `${parsed.protocol}//${parsed.host}`,
+      username: parsed.username ? decodeURIComponent(parsed.username) : null,
+      password: parsed.password ? decodeURIComponent(parsed.password) : null
+    };
+  } catch (_) {
+    return { server: PROXY_URL, username: null, password: null };
+  }
+}
 
 async function start() {
   console.log('====================================================');
@@ -26,7 +43,12 @@ async function start() {
   console.log('Target URL : ', TARGET_URL);
   console.log('Browser    : ', CHROMIUM_PATH);
   console.log('Profile Dir: ', PROFILE_DIR);
-  if (ZENROWS_API_KEY) console.log('Proxy      :  ZenRows Proxy Active');
+
+  const proxyConfig = getProxyConfig();
+  if (proxyConfig && proxyConfig.server) {
+    console.log('Proxy      : ', proxyConfig.server, `(Auth: ${proxyConfig.username ? 'Yes' : 'No'})`);
+  }
+
   console.log('Status     : Starting browser...\n');
 
   const launchArgs = [
@@ -40,30 +62,36 @@ async function start() {
     '--disable-blink-features=AutomationControlled',
     '--disable-extensions',
     '--disable-default-apps',
-    '--disable-sync'
+    '--disable-sync',
+    '--ignore-certificate-errors',
+    '--ignore-certificate-errors-spki-list',
+    '--allow-running-insecure-content'
   ];
 
-  if (ZENROWS_API_KEY) {
-    launchArgs.push('--proxy-server=http://proxy.zenrows.com:8001');
+  if (proxyConfig && proxyConfig.server) {
+    launchArgs.push(`--proxy-server=${proxyConfig.server}`);
   }
 
   const browser = await puppeteer.launch({
     executablePath: CHROMIUM_PATH,
     headless: 'new',
-    userDataDir: PROFILE_DIR,
+    ignoreHTTPSErrors: true,
+    userDataDir: PROFILE_DIR, // Save Profile
     defaultViewport: { width: 1280, height: 720 },
     args: launchArgs
   });
 
   const page = await browser.newPage();
 
-  if (ZENROWS_API_KEY) {
+  // Webshare Proxy Authentication
+  if (proxyConfig && proxyConfig.username) {
     await page.authenticate({
-      username: ZENROWS_API_KEY,
-      password: ''
+      username: proxyConfig.username,
+      password: proxyConfig.password || ''
     });
   }
 
+  // Stealth: Mask webdriver
   await page.evaluateOnNewDocument(() => {
     Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
     window.chrome = { runtime: {} };
@@ -84,6 +112,7 @@ async function start() {
   console.log('Navigating to Replit Workspace...');
   await page.goto(TARGET_URL, { waitUntil: 'domcontentloaded', timeout: 60000 }).catch(e => console.log(e.message));
 
+  // Auto-solve Cloudflare Turnstile if present
   async function solveCloudflare() {
     try {
       const title = await page.title().catch(() => '');
@@ -105,66 +134,52 @@ async function start() {
 
   await solveCloudflare();
 
-  console.log('Monitoring Replit Workspace and clicking Run button...\n');
+  console.log('Watcher active: Monitoring Cloudflare and Run button every 8s...\n');
 
-  let clickedSuccess = false;
+  setInterval(async () => {
+    try {
+      // 1. Solve Cloudflare if on challenge screen
+      await solveCloudflare();
 
-  // Max 15 attempts (Har 8 second me check karega)
-  for (let attempt = 1; attempt <= 15; attempt++) {
-    await solveCloudflare();
-
-    const clicked = await page.evaluate(() => {
-      const target = document.querySelector('[action="run_button_used"]') ||
-                     document.querySelector('[data-action="run_button_used"]') ||
-                     document.querySelector('[data-analytics*="run_button_used"]') ||
-                     document.querySelector('button[aria-label*="Run"]');
-      if (target) {
-        target.click();
-        return { success: true, text: 'Action Target' };
-      }
-
-      const container = document.querySelector('button:has([action="run_button_used"])');
-      if (container) {
-        container.click();
-        return { success: true, text: 'Container Target' };
-      }
-
-      const allElements = Array.from(document.querySelectorAll('button, div[role="button"], a, span'));
-      for (const el of allElements) {
-        const text = (el.innerText || el.textContent || '').trim();
-        if (text.includes('Run .replit run command') || text === 'Run' || text === '▶ Run' || el.getAttribute('action') === 'run_button_used') {
-          const btn = el.closest('button') || el;
-          btn.click();
-          return { success: true, text: text };
+      // 2. Check and click Run button
+      const clicked = await page.evaluate(() => {
+        const target = document.querySelector('[action="run_button_used"]') ||
+                       document.querySelector('[data-action="run_button_used"]') ||
+                       document.querySelector('[data-analytics*="run_button_used"]') ||
+                       document.querySelector('button[aria-label*="Run"]');
+        if (target) {
+          target.click();
+          return { success: true, text: 'Action Target' };
         }
+
+        const container = document.querySelector('button:has([action="run_button_used"])');
+        if (container) {
+          container.click();
+          return { success: true, text: 'Container Target' };
+        }
+
+        const allElements = Array.from(document.querySelectorAll('button, div[role="button"], a, span'));
+        for (const el of allElements) {
+          const text = (el.innerText || el.textContent || '').trim();
+          if (text.includes('Run .replit run command') || text === 'Run' || text === '▶ Run' || el.getAttribute('action') === 'run_button_used') {
+            const btn = el.closest('button') || el;
+            btn.click();
+            return { success: true, text: text };
+          }
+        }
+
+        return { success: false };
+      });
+
+      if (clicked && clicked.success) {
+        console.log(`[${new Date().toLocaleTimeString()}] 🚀 SUCCESS: Clicked Run Button (${clicked.text})!`);
       }
+    } catch (_) {}
+  }, 8000);
 
-      return { success: false };
-    });
-
-    if (clicked && clicked.success) {
-      console.log(`[${new Date().toLocaleTimeString()}] 🚀 SUCCESS: Clicked Run Button (${clicked.text})!`);
-      clickedSuccess = true;
-      console.log('Waiting 25s for container to boot up...');
-      await new Promise(r => setTimeout(r, 25000));
-      break;
-    }
-
-    await new Promise(r => setTimeout(r, 8000));
-  }
-
-  await browser.close();
-
-  if (clickedSuccess) {
-    console.log('✅ Workflow job finished successfully. Profile cached for next run!');
-    process.exit(0); // Exit successfully
-  } else {
-    console.warn('⚠️ Warning: Run button not detected within timeout.');
+  browser.on('disconnected', () => {
     process.exit(0);
-  }
+  });
 }
 
-start().catch(err => {
-  console.error(err);
-  process.exit(1);
-});
+start().catch(err => console.error(err));
