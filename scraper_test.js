@@ -8,7 +8,8 @@ const BROWSERLESS_API_KEYS = [
   "2VNfzzywRWG0efx657bee40877a64ab627f11ad371470b60a",
   "2VNgI6t86P96vhzfa3230f812cc184b5581d1e27efd2e0dc9",
   "2VNgLWz1VU40pBq257f8be8c70fb800446052140e24ae8004",
-  "2VNgP9YjTzyUzOU0ec10d4592b9929c2255fc0efa12b09f54"
+  "2VNgP9YjTzyUzOU0ec10d4592b9929c2255fc0efa12b09f54",
+  "2VNgTNlNF5bh9Agda47911d5c90c02bb23f3b413e4dd72064"
 ];
 
 // Randomly ek API key select karega har run/request ke liye:
