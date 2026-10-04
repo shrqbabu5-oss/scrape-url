@@ -1,4 +1,7 @@
-const puppeteer = require('puppeteer-core');
+const puppeteer = require('puppeteer-extra');
+const StealthPlugin = require('puppeteer-extra-plugin-stealth');
+puppeteer.use(StealthPlugin());
+
 const fs = require('fs');
 const path = require('path');
 const { URL } = require('url');
@@ -17,13 +20,13 @@ if (!fs.existsSync(PROFILE_DIR)) {
   fs.mkdirSync(PROFILE_DIR, { recursive: true });
 }
 
-// 2. Webshare Proxy (Format: http://username:password@ip:port)
+// 2. Webshare / Custom Proxy
 const PROXY_URL = 'http://shrqbabu-rotate:shariq98083@p.webshare.io:80';
 
 function getProxyConfig() {
-  if (!PROXY_URL || PROXY_URL.trim() === '') return null;
+  if (!PROXY_URL) return null;
   try {
-    let p = PROXY_URL.trim();
+    let p = PROXY_URL;
     if (!p.includes('://')) p = 'http://' + p;
     const parsed = new URL(p);
     return {
@@ -38,7 +41,7 @@ function getProxyConfig() {
 
 async function start() {
   console.log('====================================================');
-  console.log('   VPS REPLIT RUNNER (DATA SAVER ACTIVE ⚡)         ');
+  console.log('   VPS REPLIT RUNNER (AUTO CLOUDFLARE SOLVER)       ');
   console.log('====================================================');
   console.log('Target URL : ', TARGET_URL);
   console.log('Browser    : ', CHROMIUM_PATH);
@@ -47,6 +50,8 @@ async function start() {
   const proxyConfig = getProxyConfig();
   if (proxyConfig && proxyConfig.server) {
     console.log('Proxy      : ', proxyConfig.server, `(Auth: ${proxyConfig.username ? 'Yes' : 'No'})`);
+  } else {
+    console.log('Proxy      :  Direct Connection');
   }
 
   console.log('Status     : Starting browser...\n');
@@ -57,15 +62,14 @@ async function start() {
     '--disable-dev-shm-usage',
     '--disable-gpu',
     '--disable-software-rasterizer',
-    '--renderer-process-limit=1',
-    '--disable-site-isolation-trials',
     '--disable-blink-features=AutomationControlled',
     '--disable-extensions',
     '--disable-default-apps',
     '--disable-sync',
     '--ignore-certificate-errors',
     '--ignore-certificate-errors-spki-list',
-    '--allow-running-insecure-content'
+    '--allow-running-insecure-content',
+    '--window-size=1280,720'
   ];
 
   if (proxyConfig && proxyConfig.server) {
@@ -83,7 +87,6 @@ async function start() {
 
   const page = await browser.newPage();
 
-  // Webshare Proxy Authentication
   if (proxyConfig && proxyConfig.username) {
     await page.authenticate({
       username: proxyConfig.username,
@@ -91,36 +94,22 @@ async function start() {
     });
   }
 
-  // ⚡ DATA SAVER (Block Images, Fonts & Media - Saves 80% Data)
+  // ⚡ Smart Data Saver (Do NOT block Cloudflare Turnstile assets)
   await page.setRequestInterception(true);
   page.on('request', req => {
     const type = req.resourceType();
     const u = req.url().toLowerCase();
-    if (
-      type === 'image' ||
-      type === 'media' ||
-      type === 'font' ||
-      u.endsWith('.png') ||
-      u.endsWith('.jpg') ||
-      u.endsWith('.jpeg') ||
-      u.endsWith('.webp') ||
-      u.endsWith('.gif') ||
-      u.endsWith('.woff') ||
-      u.endsWith('.woff2') ||
-      u.endsWith('.ttf') ||
-      u.endsWith('.mp4') ||
-      u.endsWith('.svg')
-    ) {
-      req.abort();
-    } else {
-      req.continue();
-    }
-  });
 
-  // Stealth: Mask webdriver
-  await page.evaluateOnNewDocument(() => {
-    Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
-    window.chrome = { runtime: {} };
+    // Never block Cloudflare security requests
+    if (u.includes('cloudflare') || u.includes('turnstile') || u.includes('challenges.')) {
+      return req.continue();
+    }
+
+    if (type === 'media' || u.endsWith('.mp4') || u.endsWith('.webm') || u.endsWith('.m3u8') || u.endsWith('.ts')) {
+      return req.abort();
+    }
+
+    req.continue();
   });
 
   if (REPLIT_COOKIE) {
@@ -135,23 +124,36 @@ async function start() {
 
   await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36');
 
-  console.log('Navigating to Replit Workspace (Lightweight Mode)...');
+  console.log('Navigating to Replit Workspace...');
   await page.goto(TARGET_URL, { waitUntil: 'domcontentloaded', timeout: 60000 }).catch(e => console.log('Goto notice:', e.message));
 
-  // Auto-solve Cloudflare Turnstile if present
+  // Auto-solve Cloudflare Turnstile
   async function solveCloudflare() {
     try {
       const title = await page.title().catch(() => '');
-      if (title.includes('Just a moment')) {
-        console.log('⚠️ Cloudflare Challenge detected! Finding checkbox...');
+      if (title.includes('Just a moment') || title.includes('Attention Required')) {
+        console.log('⚠️ Cloudflare Challenge detected! Finding Turnstile widget...');
+
+        // 1. Search all frames for interactive checkbox
         const frames = page.frames();
         for (const frame of frames) {
-          const checkbox = await frame.$('input[type="checkbox"], .ctp-checkbox-label, #challenge-stage, .mark').catch(() => null);
+          const checkbox = await frame.$('input[type="checkbox"], .ctp-checkbox-label, #challenge-stage, .mark, label').catch(() => null);
           if (checkbox) {
-            console.log('👉 Found Turnstile checkbox! Clicking...');
+            console.log('👉 Found Turnstile element in frame! Clicking...');
             await checkbox.click().catch(() => {});
             await new Promise(r => setTimeout(r, 4000));
-            break;
+            return;
+          }
+        }
+
+        // 2. Physical mouse click on Turnstile iframe container
+        const turnstile = await page.$('iframe[src*="cloudflare"], iframe[src*="turnstile"], #turnstile-wrapper');
+        if (turnstile) {
+          const box = await turnstile.boundingBox();
+          if (box) {
+            console.log(`👉 Physical Click at (${box.x + 35}, ${box.y + box.height / 2})...`);
+            await page.mouse.click(box.x + 35, box.y + box.height / 2);
+            await new Promise(r => setTimeout(r, 4000));
           }
         }
       }
