@@ -31,7 +31,7 @@ const REPLIT_COOKIES = [
     },
     {
         "domain": "replit.com",
-        "expirationDate": 1791719701,
+        "expirationDate": 1791731542,
         "hostOnly": true,
         "httpOnly": false,
         "name": "_replit_sid",
@@ -40,11 +40,11 @@ const REPLIT_COOKIES = [
         "secure": true,
         "session": false,
         "storeId": null,
-        "value": "5eba0a4a-3f76-4bbe-88b1-6fd565b41bbd"
+        "value": "74f048c5-4e40-49aa-9a66-9002a9c68d01"
     },
     {
         "domain": ".replit.com",
-        "expirationDate": 1822650904,
+        "expirationDate": 1822662747,
         "hostOnly": false,
         "httpOnly": false,
         "name": "__stripe_mid",
@@ -57,7 +57,7 @@ const REPLIT_COOKIES = [
     },
     {
         "domain": ".replit.com",
-        "expirationDate": 1791119244.274009,
+        "expirationDate": 1791128542.352147,
         "hostOnly": false,
         "httpOnly": true,
         "name": "__cf_bm",
@@ -66,11 +66,11 @@ const REPLIT_COOKIES = [
         "secure": true,
         "session": false,
         "storeId": null,
-        "value": "q6idKFo1PUy8yVUf__YlanUvzDByJQjpXxRa74geQKk-1791117442.232862-1.0.1.1-vurM5v.DPPMpVc6Vc9zPAEyuZ8RNC8wNBMo8XaVNZP_.JMFAdNEJT_AviAg.Wh1JH1oxvyUFpDEqaaMqfnWpeZg8wzpnGOWT5x.1RXDlJcSGIEBCHqBTGFkIiTljALwq"
+        "value": "6XxUqfIILd6jceEJL3dlkhU8NIizk3hzDWqG0NYMhgM-1791126740.1642482-1.0.1.1-QXXl1mkTWVUcaZpOpY.O4iw.QPcjTRR1dd1TRaXjdLBptqY9mDs0yMQojCxSK6o9KTnAo90LXFK5v4sb5Ylir9aJ.MA84JQNhCnxl9KUCFc0oSrQtYwGqWG3aUHEHH.1"
     },
     {
         "domain": "replit.com",
-        "expirationDate": 1791118344.273735,
+        "expirationDate": 1791127638.558402,
         "hostOnly": true,
         "httpOnly": true,
         "name": "__Host-session-sig",
@@ -79,11 +79,11 @@ const REPLIT_COOKIES = [
         "secure": true,
         "session": false,
         "storeId": null,
-        "value": "eyJhbGciOiJSUzI1NiIsImtpZCI6ImNmLWp3dC0yMDI2LTA1LTA2LTE4MDMiLCJ0eXAiOiJKV1QifQ.eyJzdWIiOiI2MjQwMzgzOCIsInRjIjoxNzg0NDAyNTE5LCJlbnQiOmZhbHNlLCJwYWlkIjpmYWxzZSwiaWF0IjoxNzkxMTE3NDQyLCJleHAiOjE3OTExMTgzNDJ9.ZPaFl-0VHBSoxdMbyRXpgjm8JnmzSJpQ7tr6jh5rfxyoBK1TPp7dwBtUTxTb5ewQzjPPMz8RPd5-J7sa13EqGguTgARt6w9TCD15UtdrCb3k5xQxSfZkJH-EljD1kk0wu83aKD8dlEIHbHzBWeIglvN9VHn_Jsyx2bshjAszTlxrWUHFLNwJCaHOdBU5BQr0sILpEM8XauZlpdgjspR1KxeYe3xA2JXi5KApwHPV6lZ8U7V2uIzVM0FXK25-HQRRTExN7EUx9u0qiWBVFL2F2XF7ePGdVs8C57BjBgWm8y5IZeDIQ3xJbm82-MTZT9qskKLZN0MpQywqW2hNj5P9LA"
+        "value": "eyJhbGciOiJSUzI1NiIsImtpZCI6ImNmLWp3dC0yMDI2LTA1LTA2LTE4MDMiLCJ0eXAiOiJKV1QifQ.eyJzdWIiOiI2MjQwMzgzOCIsInRjIjoxNzg0NDAyNTE5LCJlbnQiOmZhbHNlLCJwYWlkIjpmYWxzZSwiaWF0IjoxNzkxMTI2NzM1LCJleHAiOjE3OTExMjc2MzV9.TSSxOdGI3T2nrPNgyaN0qvhuvlrB3Fc7hLIwnQaZ1sC-kpymQOkp1zAJbcDdYXpCWL4U2MsNMCmb9KOrlQ9HBUiwvpTkSfbOfyX4kwtmGEMJt1VMRXBM25ME6-4JgYVwzeNSKtcjc6aORbleSbUgp94K1Xaj0qOyh6i5OXiziL2_uXmWPPoWEfZsNf9dR0iUKYCUNu2G6IslUXOyK_NDKoveaBCw2aPQGUH8bzNtUX3mxLNuyxjgUxrMYje4g01TpA1tQtgDGQWW8-1tozSteZfljm9mkAoj_8Ubp71kW5l_Y7AulHol0Duw1sr1D3LKJptGWHlUHN1N8Un-dsw8ew"
     },
     {
         "domain": "replit.com",
-        "expirationDate": 1791118344.273493,
+        "expirationDate": 1791127638.558158,
         "hostOnly": true,
         "httpOnly": true,
         "name": "__Host-wr-tc",
@@ -96,6 +96,19 @@ const REPLIT_COOKIES = [
     },
     {
         "domain": ".replit.com",
+        "expirationDate": 1791128547,
+        "hostOnly": false,
+        "httpOnly": false,
+        "name": "__stripe_sid",
+        "path": "/",
+        "sameSite": "strict",
+        "secure": true,
+        "session": false,
+        "storeId": null,
+        "value": "a4fb1932-408c-4c07-a002-cfb961627454ebcf75"
+    },
+    {
+        "domain": ".replit.com",
         "hostOnly": false,
         "httpOnly": true,
         "name": "_cfuvid",
@@ -104,11 +117,11 @@ const REPLIT_COOKIES = [
         "secure": true,
         "session": true,
         "storeId": null,
-        "value": "bfDUhY45GReZz7ShV1SQEp0EcfHp9jn7_kZNNgiJID4-1791109924.5388274-1.0.1.1-4VphbpBgs0RlUVKVmYzE_BPtdXBLLwSblwY0ikkjjzE"
+        "value": "QvjnR.6yA20JEUf9AFf_DlFrOMYQSM.df0AVebYbi1k-1791123695.2758086-1.0.1.1-e2zz.fDZctemCNbFOIVwtG3qG6Trr8O3M6Yt0ZxTlbc"
     },
     {
         "domain": "replit.com",
-        "expirationDate": 1792326004.737819,
+        "expirationDate": 1792334804.815661,
         "hostOnly": true,
         "httpOnly": true,
         "name": "connect.sid",
@@ -117,7 +130,7 @@ const REPLIT_COOKIES = [
         "secure": true,
         "session": false,
         "storeId": null,
-        "value": "eyJhbGciOiJSUzI1NiIsImtpZCI6Iktna0hjZyJ9.eyJpc3MiOiJodHRwczovL3Nlc3Npb24uZmlyZWJhc2UuZ29vZ2xlLmNvbS9yZXBsaXQtd2ViIiwibmFtZSI6InNocnEgYmFidSIsInBpY3R1cmUiOiJodHRwczovL2xoMy5nb29nbGV1c2VyY29udGVudC5jb20vYS9BQ2c4b2NJNm0xcmtWQ0lfUFJidFdqMm14eVExV3FCQzAyWGltbFN3TEszMHVKcVRDbGtscHdcdTAwM2RzOTYtYyIsInJvbGVzIjpbXSwicmVwbGl0X3VzZXJfaWQiOjYyNDAzODM4LCJhdWQiOiJyZXBsaXQtd2ViIiwiYXV0aF90aW1lIjoxNzkwNDA3NTU1LCJ1c2VyX2lkIjoiTWZEWEpOaU80cU1Db3pXN29FeE5GbUdpWXV3MSIsInN1YiI6Ik1mRFhKTmlPNHFNQ296VzdvRXhORm1HaVl1dzEiLCJpYXQiOjE3OTExMTY0MDIsImV4cCI6MTc5MjMyNjAwMiwiZW1haWwiOiJzaHJxYmFidTVAZ21haWwuY29tIiwiZW1haWxfdmVyaWZpZWQiOnRydWUsImZpcmViYXNlIjp7ImlkZW50aXRpZXMiOnsiZ29vZ2xlLmNvbSI6WyIxMTM4MDQxNjQ0NzUzMzc5ODYxMTgiXSwiZW1haWwiOlsic2hycWJhYnU1QGdtYWlsLmNvbSJdfSwic2lnbl9pbl9wcm92aWRlciI6Imdvb2dsZS5jb20ifX0.N_lssGIy9JgvmeBqHJ9JxsQcXzsDtVFkr74zv1ckoK7w1o0vqYys7t3QoqSX_jH0MfBlwdmcESpdrod-ToqkkHBsuShRCwUDa8UGjXnmWHC0vpt-fbwpSzOPh1lGI1EKHaOq_0n49TgHjvg2-d8Zv_yeL_ZLsQtUEPwDJNzuSsln1QmWcZ5WjdReSUERsbqeVnS5mjSXZWlgVH6-lZ1b3X5MoR1UJ5ztdVHQMjXCW857wUMPNXlogEaDrWhEMbsCQTfX7MhAjrWNgQZkli_6QC5jtMr5HTKdCj_TzNvtLO0YY31YH0CgKDfRYichegtJE8RoWOCes99bbp8QligUFQ"
+        "value": "eyJhbGciOiJSUzI1NiIsImtpZCI6Iktna0hjZyJ9.eyJpc3MiOiJodHRwczovL3Nlc3Npb24uZmlyZWJhc2UuZ29vZ2xlLmNvbS9yZXBsaXQtd2ViIiwibmFtZSI6InNocnEgYmFidSIsInBpY3R1cmUiOiJodHRwczovL2xoMy5nb29nbGV1c2VyY29udGVudC5jb20vYS9BQ2c4b2NJNm0xcmtWQ0lfUFJidFdqMm14eVExV3FCQzAyWGltbFN3TEszMHVKcVRDbGtscHdcdTAwM2RzOTYtYyIsInJvbGVzIjpbXSwicmVwbGl0X3VzZXJfaWQiOjYyNDAzODM4LCJhdWQiOiJyZXBsaXQtd2ViIiwiYXV0aF90aW1lIjoxNzkwNDA3NTU1LCJ1c2VyX2lkIjoiTWZEWEpOaU80cU1Db3pXN29FeE5GbUdpWXV3MSIsInN1YiI6Ik1mRFhKTmlPNHFNQ296VzdvRXhORm1HaVl1dzEiLCJpYXQiOjE3OTExMjUyMDIsImV4cCI6MTc5MjMzNDgwMiwiZW1haWwiOiJzaHJxYmFidTVAZ21haWwuY29tIiwiZW1haWxfdmVyaWZpZWQiOnRydWUsImZpcmViYXNlIjp7ImlkZW50aXRpZXMiOnsiZ29vZ2xlLmNvbSI6WyIxMTM4MDQxNjQ0NzUzMzc5ODYxMTgiXSwiZW1haWwiOlsic2hycWJhYnU1QGdtYWlsLmNvbSJdfSwic2lnbl9pbl9wcm92aWRlciI6Imdvb2dsZS5jb20ifX0.Xjd7dnBbBoai0bVlMHWyq2cAYbSukssoEhQrMjhrJDSEnp-Tu6ntNxlGTriorRPSktCAVw66zaRJg4YJDLOVS6DUY265zzFr14VbqAhHPHwQNryyaKW6Hv7rhreLyVl4AYhXjXELOy6CQKp-ZuolQbIvpe6qLqzhSUEtR0IcyW9_Lb06LGoEI0qksxEXZ7FrfwddoS-6sHL0ZMObLGwgU5pOP62vGjTfjEfGqWa3MjrUPzW1jRhv6bb2bccyoKzkd4C7wHyEbQVKks6XFati1Vi0e86UJbUcKkCVY5LMvOVSrZgJnzaiZdl0vEw_uWd31bdiIUYYZjuDmKb1OWHLNQ"
     },
     {
         "domain": ".replit.com",
@@ -185,17 +198,44 @@ async function loadCookies(page) {
   for (const cookie of REPLIT_COOKIES) {
     try {
       if (!cookie.name || cookie.value === undefined) {
-        console.log(`⚠️ Skipping invalid cookie.`);
+        console.log('⚠️ Skipping invalid cookie.');
         continue;
       }
 
-      await page.setCookie({
-        ...cookie,
+      const cleanCookie = {
+        name: String(cookie.name),
+        value: String(cookie.value),
         domain: cookie.domain || '.replit.com',
         path: cookie.path || '/'
-      });
+      };
 
-      console.log(`   ✅ ${cookie.name}`);
+      // Only send sameSite if it is actually a valid string
+      if (
+        typeof cookie.sameSite === 'string' &&
+        ['Strict', 'Lax', 'None'].includes(cookie.sameSite)
+      ) {
+        cleanCookie.sameSite = cookie.sameSite;
+      }
+
+      if (typeof cookie.secure === 'boolean') {
+        cleanCookie.secure = cookie.secure;
+      }
+
+      if (typeof cookie.httpOnly === 'boolean') {
+        cleanCookie.httpOnly = cookie.httpOnly;
+      }
+
+      if (
+        typeof cookie.expires === 'number' &&
+        cookie.expires > 0
+      ) {
+        cleanCookie.expires = cookie.expires;
+      }
+
+      await page.setCookie(cleanCookie);
+
+      console.log(`   ✅ ${cleanCookie.name}`);
+
     } catch (error) {
       console.log(
         `   ⚠️ Failed: ${cookie.name} - ${error.message}`
