@@ -8,7 +8,7 @@ const BROWSERLESS_TOKEN = "2VNbTximwc4XYKC15c29aeecd697096c6785cca3e5ca4aaf4";
 // Browserless built-in residential proxy.
 // Change PROXY_COUNTRY if you need another exit country.
 const PROXY_TYPE = process.env.BROWSERLESS_PROXY || 'residential';
-const PROXY_COUNTRY = process.env.BROWSERLESS_PROXY_COUNTRY || 'us';
+const PROXY_COUNTRY = process.env.BROWSERLESS_PROXY_COUNTRY || 'in';
 const PROXY_STICKY = process.env.BROWSERLESS_PROXY_STICKY || 'true';
 
 const BROWSERLESS_WS_ENDPOINT =
