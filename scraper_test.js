@@ -6,7 +6,7 @@ const fs = require('fs');
 const path = require('path');
 const { URL } = require('url');
 
-const TARGET_URL = 'https://replit.com/@shrqbabu/Gemini-Hub';
+const TARGET_URL = 'https://api.scrapingant.com/v2/general?url=https%3A%2F%2Freplit.com%2F%40shrqbabu%2FGemini-Hub&x-api-key=116130fb585c478bae87b2e22cfecadf&proxy_type=residential&proxy_country=IN';
 
 const CHROMIUM_PATH = fs.existsSync('/opt/google/chrome/chrome')
   ? '/opt/google/chrome/chrome'
