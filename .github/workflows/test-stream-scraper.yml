@@ -3,7 +3,7 @@ name: Replit Auto Start
 on:
   workflow_dispatch:
   schedule:
-    - cron: '*/30 * * * *'
+    - cron: '*/60 * * * *'
 
 jobs:
   test-scraper:
