@@ -334,42 +334,30 @@ async function start() {
     // ========================================================
 
     const statusCode = response
-      ? response.status()
-      : null;
+  ? response.status()
+  : null;
 
-    const currentUrl = page.url();
+const currentUrl = page.url();
+const title = await page.title().catch(() => '');
 
-    const title = await page
-      .title()
-      .catch(() => '');
+console.log('📄 HTTP Status:', statusCode);
+console.log('📄 Current URL:', currentUrl);
+console.log('📄 Page title :', title);
 
+if (
+  statusCode === 403 ||
+  title.toLowerCase().includes('just a moment') ||
+  title.toLowerCase().includes('checking your browser')
+) {
+  console.log('');
+  console.log('🛑 Replit security challenge detected.');
+  console.log('   Run button is not available in the current page.');
+  console.log('   Cookies were loaded successfully, but the request');
+  console.log('   was still challenged by the site.');
+  console.log('');
 
-    console.log('');
-    console.log('📄 HTTP Status:', statusCode);
-    console.log('📄 Current URL:', currentUrl);
-    console.log('📄 Page title :', title);
-    console.log('');
-
-
-    // ========================================================
-    // 404 CHECK
-    // ========================================================
-
-    if (
-      statusCode === 404 ||
-      title.includes('404')
-    ) {
-
-      console.log(
-        '❌ Replit returned HTTP 404.'
-      );
-
-      console.log(
-        '   Check TARGET_URL and project availability.'
-      );
-
-      return;
-    }
+  return;
+}
 
 
     // ========================================================
