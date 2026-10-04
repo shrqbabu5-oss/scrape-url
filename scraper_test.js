@@ -1,20 +1,26 @@
+// npm install puppeteer-core
+
 const puppeteer = require('puppeteer-core');
-const fs = require('fs');
-const path = require('path');
+
+// ============================================================
+// CONFIG
+// ============================================================
 
 const TARGET_URL = 'https://replit.com/@shrqbabu/Gemini-Hub';
 
-const CHROMIUM_PATH = fs.existsSync('/opt/google/chrome/chrome')
-  ? '/opt/google/chrome/chrome'
-  : '/usr/bin/google-chrome';
+const ZENROWS_API_KEY = (
+  process.env.ZENROWS_API_KEY || 'abe413f6bb78bf220f1f4ea1bed7fa87f2fd5bc8'
+).trim();
+
 
 // ============================================================
-// HARD-CODED REPLIT COOKIES
+// HARD-CODED COOKIES
 // ============================================================
 //
-// Apni cookies yahan paste karo.
+// Apni Replit cookies yahan paste karo.
 //
 // Example:
+//
 // const REPLIT_COOKIES = [
 //   {
 //     name: 'cookie_name',
@@ -68,7 +74,7 @@ const REPLIT_COOKIES = [
     },
     {
         "domain": ".replit.com",
-        "expirationDate": 1791117285.145557,
+        "expirationDate": 1791119244.274009,
         "hostOnly": false,
         "httpOnly": true,
         "name": "__cf_bm",
@@ -77,11 +83,11 @@ const REPLIT_COOKIES = [
         "secure": true,
         "session": false,
         "storeId": null,
-        "value": "ym0AZEsA2085jfZRCy.h2Dj8NGjlt.t_mG4ZPgrbIpc-1791115483.122239-1.0.1.1-eG8Q9NRS7yzypsZ7QDp34KgPoYOky_LD0E3JBAgaMWb4dBaFUkrkP5b5jbKhovc6LfDWzC1qg4Dk5ngO36.StGyn.kc2kdOFsBhmIXNkS92wUpOX.23My7yj2gJWEgzd"
+        "value": "q6idKFo1PUy8yVUf__YlanUvzDByJQjpXxRa74geQKk-1791117442.232862-1.0.1.1-vurM5v.DPPMpVc6Vc9zPAEyuZ8RNC8wNBMo8XaVNZP_.JMFAdNEJT_AviAg.Wh1JH1oxvyUFpDEqaaMqfnWpeZg8wzpnGOWT5x.1RXDlJcSGIEBCHqBTGFkIiTljALwq"
     },
     {
         "domain": "replit.com",
-        "expirationDate": 1791116877.034836,
+        "expirationDate": 1791118344.273735,
         "hostOnly": true,
         "httpOnly": true,
         "name": "__Host-session-sig",
@@ -90,11 +96,11 @@ const REPLIT_COOKIES = [
         "secure": true,
         "session": false,
         "storeId": null,
-        "value": "eyJhbGciOiJSUzI1NiIsImtpZCI6ImNmLWp3dC0yMDI2LTA1LTA2LTE4MDMiLCJ0eXAiOiJKV1QifQ.eyJzdWIiOiI2MjQwMzgzOCIsInRjIjoxNzg0NDAyNTE5LCJlbnQiOmZhbHNlLCJwYWlkIjpmYWxzZSwiaWF0IjoxNzkxMTE1OTc1LCJleHAiOjE3OTExMTY4NzV9.K0l6O58LBN0n8OURmSU4XpDutlvV6LxOe0fTU2Z1fIC7m7mjUnRf-c-a80AAuFh4OPU-gGADQY5rB8C-1m1mqYcaST8_2tGq1pLg-TeAFwtrEqIpn66YiIgMBwxNAtP6C-VFh7fWtPpYD9WoIU6Abyzi1cL-LI03B5zfAwZt8tTDQkmx2nGQkhh4PAx7wmf8frFoRX0rmnmMK3jDcJTHh5L7jsNZHqyV08g3jfpXquMxjp-Ga2rpA-Eu36iCCY4l9H3dqozkg9abvMRe4MOpYwCoBdTzLzFao3eaSNDS565RAsBZYuKkCWA-2EG0y_xz6MgfO0B6DOoXqrAHnq1kmg"
+        "value": "eyJhbGciOiJSUzI1NiIsImtpZCI6ImNmLWp3dC0yMDI2LTA1LTA2LTE4MDMiLCJ0eXAiOiJKV1QifQ.eyJzdWIiOiI2MjQwMzgzOCIsInRjIjoxNzg0NDAyNTE5LCJlbnQiOmZhbHNlLCJwYWlkIjpmYWxzZSwiaWF0IjoxNzkxMTE3NDQyLCJleHAiOjE3OTExMTgzNDJ9.ZPaFl-0VHBSoxdMbyRXpgjm8JnmzSJpQ7tr6jh5rfxyoBK1TPp7dwBtUTxTb5ewQzjPPMz8RPd5-J7sa13EqGguTgARt6w9TCD15UtdrCb3k5xQxSfZkJH-EljD1kk0wu83aKD8dlEIHbHzBWeIglvN9VHn_Jsyx2bshjAszTlxrWUHFLNwJCaHOdBU5BQr0sILpEM8XauZlpdgjspR1KxeYe3xA2JXi5KApwHPV6lZ8U7V2uIzVM0FXK25-HQRRTExN7EUx9u0qiWBVFL2F2XF7ePGdVs8C57BjBgWm8y5IZeDIQ3xJbm82-MTZT9qskKLZN0MpQywqW2hNj5P9LA"
     },
     {
         "domain": "replit.com",
-        "expirationDate": 1791116877.034683,
+        "expirationDate": 1791118344.273493,
         "hostOnly": true,
         "httpOnly": true,
         "name": "__Host-wr-tc",
@@ -104,19 +110,6 @@ const REPLIT_COOKIES = [
         "session": false,
         "storeId": null,
         "value": "1784402519"
-    },
-    {
-        "domain": ".replit.com",
-        "expirationDate": 1791116704,
-        "hostOnly": false,
-        "httpOnly": false,
-        "name": "__stripe_sid",
-        "path": "/",
-        "sameSite": "strict",
-        "secure": true,
-        "session": false,
-        "storeId": null,
-        "value": "57802092-f882-4a86-9275-b47d7f01b4f5ddaa69"
     },
     {
         "domain": ".replit.com",
@@ -132,7 +125,7 @@ const REPLIT_COOKIES = [
     },
     {
         "domain": "replit.com",
-        "expirationDate": 1792322960.725184,
+        "expirationDate": 1792326004.737819,
         "hostOnly": true,
         "httpOnly": true,
         "name": "connect.sid",
@@ -141,7 +134,7 @@ const REPLIT_COOKIES = [
         "secure": true,
         "session": false,
         "storeId": null,
-        "value": "eyJhbGciOiJSUzI1NiIsImtpZCI6Iktna0hjZyJ9.eyJpc3MiOiJodHRwczovL3Nlc3Npb24uZmlyZWJhc2UuZ29vZ2xlLmNvbS9yZXBsaXQtd2ViIiwibmFtZSI6InNocnEgYmFidSIsInBpY3R1cmUiOiJodHRwczovL2xoMy5nb29nbGV1c2VyY29udGVudC5jb20vYS9BQ2c4b2NJNm0xcmtWQ0lfUFJidFdqMm14eVExV3FCQzAyWGltbFN3TEszMHVKcVRDbGtscHdcdTAwM2RzOTYtYyIsInJvbGVzIjpbXSwicmVwbGl0X3VzZXJfaWQiOjYyNDAzODM4LCJhdWQiOiJyZXBsaXQtd2ViIiwiYXV0aF90aW1lIjoxNzkwNDA3NTU1LCJ1c2VyX2lkIjoiTWZEWEpOaU80cU1Db3pXN29FeE5GbUdpWXV3MSIsInN1YiI6Ik1mRFhKTmlPNHFNQ296VzdvRXhORm1HaVl1dzEiLCJpYXQiOjE3OTExMTMzNTgsImV4cCI6MTc5MjMyMjk1OCwiZW1haWwiOiJzaHJxYmFidTVAZ21haWwuY29tIiwiZW1haWxfdmVyaWZpZWQiOnRydWUsImZpcmViYXNlIjp7ImlkZW50aXRpZXMiOnsiZ29vZ2xlLmNvbSI6WyIxMTM4MDQxNjQ0NzUzMzc5ODYxMTgiXSwiZW1haWwiOlsic2hycWJhYnU1QGdtYWlsLmNvbSJdfSwic2lnbl9pbl9wcm92aWRlciI6Imdvb2dsZS5jb20ifX0.CAWuds9BMT3U5Lws6YQpl7Ud60mINqrtMvJNtB_Ne3JlvkD-CiDCAgnPadP6KTDONdoGlLmfSZTglKQ8qrTeMK_gCPWUGZ6v8mdWOQ6RQ35fyvvQJ9ZaI_EsQAmPXYp6v0saj5nWMg4xuOyeo_V2U7LusbBZ9sAvZz2cgezVGS5dYQBC7JHxFzBcnIAXE2RSJL7ImFczHm9WrVKl0c1wNYH0UKicicDs7eANFALI5dhodKvJyvjnQqTGjKQBUuu1iZareofGqHf1Zb2oZhZnESjymqYUJJ5WSztP7AK2xgqxZceyjn9WDs-ByEl88riFCJM1q3u6B4z_JMBCx21YGw"
+        "value": "eyJhbGciOiJSUzI1NiIsImtpZCI6Iktna0hjZyJ9.eyJpc3MiOiJodHRwczovL3Nlc3Npb24uZmlyZWJhc2UuZ29vZ2xlLmNvbS9yZXBsaXQtd2ViIiwibmFtZSI6InNocnEgYmFidSIsInBpY3R1cmUiOiJodHRwczovL2xoMy5nb29nbGV1c2VyY29udGVudC5jb20vYS9BQ2c4b2NJNm0xcmtWQ0lfUFJidFdqMm14eVExV3FCQzAyWGltbFN3TEszMHVKcVRDbGtscHdcdTAwM2RzOTYtYyIsInJvbGVzIjpbXSwicmVwbGl0X3VzZXJfaWQiOjYyNDAzODM4LCJhdWQiOiJyZXBsaXQtd2ViIiwiYXV0aF90aW1lIjoxNzkwNDA3NTU1LCJ1c2VyX2lkIjoiTWZEWEpOaU80cU1Db3pXN29FeE5GbUdpWXV3MSIsInN1YiI6Ik1mRFhKTmlPNHFNQ296VzdvRXhORm1HaVl1dzEiLCJpYXQiOjE3OTExMTY0MDIsImV4cCI6MTc5MjMyNjAwMiwiZW1haWwiOiJzaHJxYmFidTVAZ21haWwuY29tIiwiZW1haWxfdmVyaWZpZWQiOnRydWUsImZpcmViYXNlIjp7ImlkZW50aXRpZXMiOnsiZ29vZ2xlLmNvbSI6WyIxMTM4MDQxNjQ0NzUzMzc5ODYxMTgiXSwiZW1haWwiOlsic2hycWJhYnU1QGdtYWlsLmNvbSJdfSwic2lnbl9pbl9wcm92aWRlciI6Imdvb2dsZS5jb20ifX0.N_lssGIy9JgvmeBqHJ9JxsQcXzsDtVFkr74zv1ckoK7w1o0vqYys7t3QoqSX_jH0MfBlwdmcESpdrod-ToqkkHBsuShRCwUDa8UGjXnmWHC0vpt-fbwpSzOPh1lGI1EKHaOq_0n49TgHjvg2-d8Zv_yeL_ZLsQtUEPwDJNzuSsln1QmWcZ5WjdReSUERsbqeVnS5mjSXZWlgVH6-lZ1b3X5MoR1UJ5ztdVHQMjXCW857wUMPNXlogEaDrWhEMbsCQTfX7MhAjrWNgQZkli_6QC5jtMr5HTKdCj_TzNvtLO0YY31YH0CgKDfRYichegtJE8RoWOCes99bbp8QligUFQ"
     },
     {
         "domain": ".replit.com",
@@ -173,14 +166,23 @@ const REPLIT_COOKIES = [
 
 
 // ============================================================
-// PROFILE
+// VALIDATE CONFIG
 // ============================================================
 
-const PROFILE_DIR = path.join(__dirname, 'profile');
-
-if (!fs.existsSync(PROFILE_DIR)) {
-  fs.mkdirSync(PROFILE_DIR, { recursive: true });
+if (!ZENROWS_API_KEY) {
+  console.error('❌ ZENROWS_API_KEY is missing.');
+  process.exit(1);
 }
+
+
+// ============================================================
+// ZENROWS SCRAPING BROWSER
+// ============================================================
+
+const connectionURL =
+  `wss://browser.zenrows.com?apikey=${encodeURIComponent(
+    ZENROWS_API_KEY
+  )}`;
 
 
 // ============================================================
@@ -188,16 +190,17 @@ if (!fs.existsSync(PROFILE_DIR)) {
 // ============================================================
 
 async function loadCookies(page) {
+
   if (
     !Array.isArray(REPLIT_COOKIES) ||
     REPLIT_COOKIES.length === 0
   ) {
     console.log('🍪 No hard-coded cookies configured.');
-    console.log('   Using existing Chrome profile.');
     return;
   }
 
   try {
+
     const cookies = REPLIT_COOKIES
       .filter(cookie =>
         cookie &&
@@ -223,7 +226,7 @@ async function loadCookies(page) {
           : {})
       }));
 
-    if (cookies.length === 0) {
+    if (!cookies.length) {
       console.log('⚠️ No valid cookies found.');
       return;
     }
@@ -231,14 +234,16 @@ async function loadCookies(page) {
     await page.setCookie(...cookies);
 
     console.log(
-      `🍪 ${cookies.length} hard-coded cookie(s) loaded.`
+      `🍪 ${cookies.length} Replit cookie(s) loaded.`
     );
 
   } catch (error) {
+
     console.error(
-      '❌ Failed to load cookies:',
+      '❌ Cookie loading failed:',
       error.message
     );
+
   }
 }
 
@@ -250,44 +255,47 @@ async function loadCookies(page) {
 async function start() {
 
   console.log('====================================================');
-  console.log('             REPLIT AUTO RUNNER                     ');
+  console.log('          ZENROWS REPLIT AUTO RUNNER                ');
   console.log('====================================================');
 
-  console.log('Target URL :', TARGET_URL);
-  console.log('Browser    :', CHROMIUM_PATH);
-  console.log('Profile    :', PROFILE_DIR);
-  console.log('Proxy      : Disabled');
-  console.log('Cookies    : Hard-coded');
+  console.log('Target :', TARGET_URL);
+  console.log('Browser: ZenRows Scraping Browser');
+  console.log('Proxy  : ZenRows Remote Browser');
   console.log('====================================================');
   console.log('');
 
-  const launchArgs = [
-    '--no-sandbox',
-    '--disable-setuid-sandbox',
-    '--disable-dev-shm-usage',
-    '--disable-gpu',
-    '--disable-software-rasterizer',
-    '--renderer-process-limit=1',
-    '--disable-site-isolation-trials',
-    '--disable-extensions',
-    '--disable-default-apps',
-    '--disable-sync'
-  ];
-
-  const browser = await puppeteer.launch({
-    executablePath: CHROMIUM_PATH,
-    headless: 'new',
-    userDataDir: PROFILE_DIR,
-    defaultViewport: {
-      width: 1280,
-      height: 720
-    },
-    args: launchArgs
-  });
+  let browser;
 
   try {
 
+    // --------------------------------------------------------
+    // CONNECT TO ZENROWS REMOTE CHROME
+    // --------------------------------------------------------
+
+    console.log(
+      '🔌 Connecting to ZenRows Scraping Browser...'
+    );
+
+    browser = await puppeteer.connect({
+      browserWSEndpoint: connectionURL
+    });
+
+    console.log(
+      '✅ Connected to ZenRows browser.'
+    );
+
+
+    // --------------------------------------------------------
+    // CREATE PAGE
+    // --------------------------------------------------------
+
     const page = await browser.newPage();
+
+    await page.setViewport({
+      width: 1280,
+      height: 720
+    });
+
 
     await page.setUserAgent(
       'Mozilla/5.0 (Windows NT 10.0; Win64; x64) ' +
@@ -296,23 +304,27 @@ async function start() {
     );
 
 
-    // ========================================================
-    // LOAD HARD-CODED COOKIES
-    // ========================================================
+    // --------------------------------------------------------
+    // COOKIES
+    // --------------------------------------------------------
 
     await loadCookies(page);
 
 
-    // ========================================================
+    // --------------------------------------------------------
     // OPEN REPLIT
-    // ========================================================
+    // --------------------------------------------------------
 
+    console.log('');
     console.log('🌐 Opening Replit...');
 
-    const response = await page.goto(TARGET_URL, {
-      waitUntil: 'domcontentloaded',
-      timeout: 60000
-    }).catch(error => {
+    const response = await page.goto(
+      TARGET_URL,
+      {
+        waitUntil: 'domcontentloaded',
+        timeout: 60000
+      }
+    ).catch(error => {
 
       console.log(
         '⚠️ Navigation error:',
@@ -323,46 +335,37 @@ async function start() {
     });
 
 
-    // Wait for Replit UI
+    // Allow UI to render
     await new Promise(resolve =>
       setTimeout(resolve, 5000)
     );
 
 
-    // ========================================================
+    // --------------------------------------------------------
     // PAGE INFORMATION
-    // ========================================================
+    // --------------------------------------------------------
 
     const statusCode = response
-  ? response.status()
-  : null;
+      ? response.status()
+      : null;
 
-const currentUrl = page.url();
-const title = await page.title().catch(() => '');
+    const currentUrl = page.url();
 
-console.log('📄 HTTP Status:', statusCode);
-console.log('📄 Current URL:', currentUrl);
-console.log('📄 Page title :', title);
-
-if (
-  statusCode === 403 ||
-  title.toLowerCase().includes('just a moment') ||
-  title.toLowerCase().includes('checking your browser')
-) {
-  console.log('');
-  console.log('🛑 Replit security challenge detected.');
-  console.log('   Run button is not available in the current page.');
-  console.log('   Cookies were loaded successfully, but the request');
-  console.log('   was still challenged by the site.');
-  console.log('');
-
-  return;
-}
+    const title = await page
+      .title()
+      .catch(() => '');
 
 
-    // ========================================================
+    console.log('');
+    console.log('📄 HTTP Status:', statusCode);
+    console.log('📄 Current URL:', currentUrl);
+    console.log('📄 Page title :', title);
+    console.log('');
+
+
+    // --------------------------------------------------------
     // LOGIN CHECK
-    // ========================================================
+    // --------------------------------------------------------
 
     if (
       currentUrl.includes('/login') ||
@@ -375,16 +378,66 @@ if (
       );
 
       console.log(
-        '   Check the hard-coded cookies.'
+        '   Check your hard-coded cookies.'
       );
 
       return;
     }
 
 
-    // ========================================================
+    // --------------------------------------------------------
+    // SECURITY CHALLENGE DETECTION
+    // --------------------------------------------------------
+
+    const lowerTitle = title.toLowerCase();
+
+    if (
+      statusCode === 403 &&
+      (
+        lowerTitle.includes('just a moment') ||
+        lowerTitle.includes('checking your browser') ||
+        lowerTitle.includes('security')
+      )
+    ) {
+
+      console.log('');
+      console.log(
+        '⚠️ Security challenge detected.'
+      );
+
+      console.log(
+        '   Run button is not available yet.'
+      );
+
+      return;
+    }
+
+
+    // --------------------------------------------------------
+    // 404 CHECK
+    // --------------------------------------------------------
+
+    if (
+      statusCode === 404 ||
+      lowerTitle.includes('404')
+    ) {
+
+      console.log('');
+      console.log(
+        '❌ Replit returned 404.'
+      );
+
+      console.log(
+        '   Check TARGET_URL.'
+      );
+
+      return;
+    }
+
+
+    // --------------------------------------------------------
     // FIND RUN BUTTON
-    // ========================================================
+    // --------------------------------------------------------
 
     console.log(
       '🔎 Looking for Run button...\n'
@@ -393,7 +446,12 @@ if (
     let clickedSuccess = false;
 
 
-    for (let attempt = 1; attempt <= 15; attempt++) {
+    // Maximum 15 attempts
+    for (
+      let attempt = 1;
+      attempt <= 15;
+      attempt++
+    ) {
 
       console.log(
         `[${new Date().toLocaleTimeString()}] ` +
@@ -403,7 +461,10 @@ if (
 
       const result = await page.evaluate(() => {
 
+        // ----------------------------------------------
         // Direct selectors
+        // ----------------------------------------------
+
         const selectors = [
           '[action="run_button_used"]',
           '[data-action="run_button_used"]',
@@ -435,12 +496,16 @@ if (
                   ''
                 ).trim()
               };
+
             }
           }
         }
 
 
-        // Text-based search
+        // ----------------------------------------------
+        // Text based detection
+        // ----------------------------------------------
+
         const elements = Array.from(
           document.querySelectorAll(
             'button, div[role="button"], a'
@@ -477,6 +542,7 @@ if (
                 method: 'text',
                 text
               };
+
             }
           }
         }
@@ -489,9 +555,9 @@ if (
       });
 
 
-      // ======================================================
+      // ------------------------------------------------------
       // SUCCESS
-      // ======================================================
+      // ------------------------------------------------------
 
       if (result.success) {
 
@@ -509,6 +575,7 @@ if (
           'Text:',
           result.text
         );
+
 
         clickedSuccess = true;
 
@@ -528,7 +595,7 @@ if (
       }
 
 
-      // Wait before next attempt
+      // Wait 8 seconds
       await new Promise(resolve =>
         setTimeout(resolve, 8000)
       );
@@ -536,9 +603,9 @@ if (
     }
 
 
-    // ========================================================
-    // FINAL RESULT
-    // ========================================================
+    // --------------------------------------------------------
+    // RESULT
+    // --------------------------------------------------------
 
     if (clickedSuccess) {
 
@@ -547,22 +614,43 @@ if (
         '✅ Replit workflow completed successfully.'
       );
 
-      console.log(
-        '💾 Chrome profile will be cached.'
-      );
-
     } else {
 
       console.log('');
       console.log(
-        '⚠️ Run button was not detected within timeout.'
+        '⚠️ Run button was not detected.'
       );
+
     }
+
+  } catch (error) {
+
+    console.error('');
+    console.error(
+      '❌ Fatal Error:'
+    );
+
+    console.error(error);
+
+    process.exitCode = 1;
 
   } finally {
 
-    await browser.close().catch(() => {});
+    // --------------------------------------------------------
+    // CLOSE ZENROWS BROWSER
+    // --------------------------------------------------------
 
+    if (browser) {
+
+      await browser
+        .close()
+        .catch(() => {});
+
+      console.log('');
+      console.log(
+        '🔌 ZenRows browser connection closed.'
+      );
+    }
   }
 }
 
@@ -571,12 +659,4 @@ if (
 // START
 // ============================================================
 
-start().catch(error => {
-
-  console.error('');
-  console.error('❌ Fatal Error:');
-  console.error(error);
-
-  process.exit(1);
-
-});
+start();
