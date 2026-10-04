@@ -16,7 +16,7 @@ const TABLE_NAME = "live_channels";
 const CHANNELS_TO_UPDATE = [
   {
     id: "starsp4",
-    name: "Star Sports 2 (Eng)",
+    name: "Star Sports 1 (Hi)",
     pageUrl: "https://playsza.xyz/uembed.php?v=starsp4",
     referer: "https://playsza.xyz/",
     language: "English",
@@ -33,7 +33,7 @@ const CHANNELS_TO_UPDATE = [
   {
     id: "ten1",
     name: "Sony Sports 1 HD",
-    pageUrl: "https://playsza.xyz/uembed.php?v=ten1",
+    pageUrl: "https://playsza.xyz/uembed.php?v=sony1c",
     referer: "https://playsza.xyz/",
     language: "English",
     category: "Sports"
@@ -41,7 +41,7 @@ const CHANNELS_TO_UPDATE = [
   {
     id: "starsp2",
     name: "Star Sports 2 (Hi)",
-    pageUrl: "https://playsza.xyz/uembed.php?v=starsp2",
+    pageUrl: "https://playsza.xyz/uembed.php?v=star3in",
     referer: "https://playsza.xyz/",
     language: "Hindi",
     category: "Cricket"
