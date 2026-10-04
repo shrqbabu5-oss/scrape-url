@@ -9,8 +9,8 @@ const ZENROWS_API_KEY = "YOUR_ZENROWS_API_KEY_HERE";
 // 👉 APNI SCRAPINGANT API KEY (Optional Fallback):
 const SCRAPINGANT_API_KEY = "";
 
-const SUPABASE_URL = "https://eyyyyyyyyyyyyyyy.supabase.co"; // Replace with your actual Supabase URL
-const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR"; // Replace with your actual Supabase Key
+const SUPABASE_URL = "https://exaorbbpvxnogpbvyayx.supabase.co"; // Replace with your actual Supabase URL
+const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV4YW9yYmJwdnhub2dwYnZ5YXl4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkxMjM4MDUsImV4cCI6MjEwNDY5OTgwNX0.mnV03xUfYtG5xFftaNNnkK_S7UkIGPLw5QTqcIf6aWs"; // Replace with your actual Supabase Key
 const TABLE_NAME = "live_channels";
 
 const CHANNELS_TO_UPDATE = [
