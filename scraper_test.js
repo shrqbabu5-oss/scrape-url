@@ -48,8 +48,6 @@ const CHANNELS_TO_UPDATE = [
   }
 ];
 
-const REFRESH_INTERVAL_MINUTES = parseInt(process.env.REFRESH_INTERVAL_MINUTES || '45', 10);
-
 // ================= P.A.C.K.E.R UNPACKER =================
 
 function unpackDeanEdwards(scriptText) {
@@ -133,48 +131,75 @@ function findEmbeddedIframe(html) {
   return match ? match[1] : null;
 }
 
-// ================= BROWSERLESS BAP SDK FETCHER =================
+// ================= BROWSERLESS BQL FETCHER =================
 
 async function fetchWithBrowserless(targetUrl) {
-  let browser = null;
-  try {
-    const bapModule = await import('@browserless.io/bap-ts');
-    const Browserless = bapModule.default || bapModule;
+  const endpoint = "https://production-sfo.browserless.io/chromium/bql";
+  const proxyString = "&proxy=residential&proxySticky=true&proxyCountry=in";
+  const optionsString = "&humanlike=true&blockAds=true&blockConsentModals=true";
 
-     browser = Browserless.connect({
-      browserWSEndpoint: `wss://production-sfo.browserless.io/stealth/bql?proxy=residential&proxyCountry=in&blockAds=true&humanlike=true`,
-      token: BROWSERLESS_API_KEY,
-    });
-    const page = await browser.newPage();
-    await page.setExtraHTTPHeaders({ 'Referer': 'https://playsza.xyz/' });
-    await page.goto(targetUrl, { waitUntil: 'domContentLoaded', timeout: 30000 });
+  const url = `${endpoint}?token=${BROWSERLESS_API_KEY}${proxyString}${optionsString}`;
 
-    console.log('   [Wait] Solving Cloudflare Turnstile...');
-    for (let i = 0; i < 12; i++) {
-        const title = await page.title().catch(() => '');
-        if (!title.includes('Just a moment') && !title.includes('Attention Required')) {
-            break;
-        }
+  // Native GraphQL Query matching your working IDE example
+  const query = `
+    mutation ScrapeStreams {
+      # 1. Provide a realistic browser viewport
+      viewport(width: 1366, height: 768) {
+        width
+        height
+      }
 
-        // Attempt physical internal click via JS if challenge is stuck
-        await page.evaluate(() => {
-           const cf = document.querySelector('iframe[src*="cloudflare"], iframe[src*="turnstile"], #turnstile-wrapper');
-           if (cf) cf.click();
-        }).catch(() => {});
+      # 2. Setup the proxy for this session
+      proxy(type: [document, xhr], country: IN, sticky: true) {
+        time
+      }
 
-        await new Promise(r => setTimeout(r, 2000));
+      # 3. Load the Streaming URL and wait for initial load
+      goto(url: "${targetUrl}", waitUntil: networkIdle) {
+        status
+      }
+
+      # 4. Wait 12 seconds for Cloudflare Turnstile to auto-bypass and scripts to decode m3u8
+      waitForTimeout(timeout: 12000)
+
+      # 5. Extract the page HTML to be parsed by our regex matching logic
+      content {
+        html
+      }
     }
+  `;
 
-    // Extra grace period for player scripts to decode the m3u8
-    await new Promise(r => setTimeout(r, 4000));
+  console.log('   [Wait] Sending BrowserQL mutation and waiting for execution...');
 
-    const html = await page.content();
-    await browser.close();
-    return html;
-  } catch (err) {
-    if (browser) await browser.close().catch(() => {});
-    throw err;
+  const options = {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      query: query,
+      operationName: 'ScrapeStreams'
+    })
+  };
+
+  const response = await fetch(url, options);
+
+  if (!response.ok) {
+    const errText = await response.text();
+    throw new Error(`Browserless HTTP Error (${response.status}): ${errText.slice(0, 150)}`);
   }
+
+  const data = await response.json();
+
+  if (data.errors) {
+    throw new Error(`BrowserQL Execution Errors: ${JSON.stringify(data.errors)}`);
+  }
+
+  if (data.data && data.data.content && data.data.content.html) {
+    return data.data.content.html;
+  }
+
+  throw new Error('Browserless returned empty HTML content.');
 }
 
 // ================= ZENROWS FETCHER =================
@@ -361,11 +386,15 @@ async function runCycle() {
     await new Promise(r => setTimeout(r, 2000));
   }
 
-  console.log(`\n>>> Cycle completed. Next run in ${REFRESH_INTERVAL_MINUTES} minutes.`);
+  console.log(`\n====================================================`);
+  console.log(`   Scrape Run Finished Successfully ✅     `);
+  console.log(`====================================================`);
 }
 
-// 1. Run immediately
-runCycle();
-
-// 2. Schedule every N minutes
-setInterval(runCycle, REFRESH_INTERVAL_MINUTES * 60 * 1000);
+// Ensure the script exits properly after one full run (since GitHub Actions cron handles the schedule)
+runCycle().then(() => {
+  process.exit(0);
+}).catch((err) => {
+  console.error("Fatal Error:", err);
+  process.exit(1);
+});
