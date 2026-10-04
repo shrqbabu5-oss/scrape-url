@@ -8,15 +8,11 @@ const BROWSERLESS_TOKEN = "2VNbTximwc4XYKC15c29aeecd697096c6785cca3e5ca4aaf4";
 // Browserless built-in residential proxy.
 // Change PROXY_COUNTRY if you need another exit country.
 const PROXY_TYPE = process.env.BROWSERLESS_PROXY || 'residential';
-const PROXY_COUNTRY = process.env.BROWSERLESS_PROXY_COUNTRY || 'in';
+const PROXY_COUNTRY = process.env.BROWSERLESS_PROXY_COUNTRY || 'us';
 const PROXY_STICKY = process.env.BROWSERLESS_PROXY_STICKY || 'true';
 
 const BROWSERLESS_WS_ENDPOINT =
-  `wss://production-sfo.browserless.io?` +
-  `token=${encodeURIComponent(BROWSERLESS_TOKEN)}` +
-  `&proxy=${encodeURIComponent(PROXY_TYPE)}` +
-  `&proxyCountry=${encodeURIComponent(PROXY_COUNTRY)}` +
-  `&proxySticky=${encodeURIComponent(PROXY_STICKY)}`;
+  `https://production-sfo.browserless.io/chromium/bql?token=2VNbTximwc4XYKC15c29aeecd697096c6785cca3e5ca4aaf4&proxy=residential&proxySticky=true&proxyCountry=us&humanlike=true&blockAds=true&blockConsentModals=true`;
 
 const SUPABASE_URL = "https://exaorbbpvxnogpbvyayx.supabase.co";
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV4YW9yYmJwdnhub2dwYnZ5YXl4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkxMjM4MDUsImV4cCI6MjEwNDY5OTgwNX0.mnV03xUfYtG5xFftaNNnkK_S7UkIGPLw5QTqcIf6aWs";
