@@ -142,7 +142,8 @@ async function fetchWithBrowserless(targetUrl) {
     const Browserless = bapModule.default || bapModule;
 
      browser = Browserless.connect({
-      browserWSEndpoint: `wss://production-sfo.browserless.io?token=${BROWSERLESS_API_KEY}&proxy=residential&proxySticky=true&proxyCountry=us&blockAds=true&humanlike=true`,
+      browserWSEndpoint: `wss://production-sfo.browserless.io/stealth/bql?proxy=residential&proxyCountry=in&blockAds=true&humanlike=true`,
+      token: BROWSERLESS_API_KEY,
     });
     const page = await browser.newPage();
     await page.setExtraHTTPHeaders({ 'Referer': 'https://playsza.xyz/' });
