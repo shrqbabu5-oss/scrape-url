@@ -79,6 +79,24 @@ function unpackDeanEdwards(scriptText) {
 function extractM3u8FromHtml(html) {
   if (!html) return null;
 
+  // M3U8 URLs observed by Browserless during normal page loading.
+  const observedBlock = html.match(
+    /<!-- BROWSERLESS_OBSERVED_M3U8\\n([\\s\\S]*?)\\n-->/
+  );
+
+  if (observedBlock) {
+    const observedUrls = observedBlock[1]
+      .split('\\n')
+      .map(x => x.trim())
+      .filter(Boolean);
+
+    for (const url of observedUrls) {
+      if (/^https?:\\/\\//i.test(url) && /\\.m3u8(?:[?#]|$)/i.test(url)) {
+        return url;
+      }
+    }
+  }
+
   // Unpack any packed scripts first
   let cleanHtml = html;
   if (html.includes('eval(function(p,a,c,k,e,d)')) {
@@ -198,30 +216,68 @@ async function fetchWithBrowserless(targetUrl) {
       timeout: 60000
     });
 
-    const status = response ? response.status() : 0;
-
-    console.log(`📄 [Browserless] HTTP Status: ${status}`);
-
-    // Allow player JavaScript to execute and add the stream URL.
-    await new Promise(resolve => setTimeout(resolve, 4000));
-
-    const html = await page.content();
-    const title = await page.title().catch(() => 'No title');
+    const initialStatus = response ? response.status() : 0;
 
     console.log(
-      `📄 [Browserless] Title: "${title}" | HTML Length: ${html.length}`
+      `📄 [Browserless] Initial HTTP Status: ${initialStatus}`
     );
 
-    if (status >= 400) {
-      throw new Error(
-        `Browserless target returned HTTP ${status} (${title})`
+    // Give normal browser-side JavaScript/navigation time to finish.
+    // This does NOT attempt to solve or bypass any security challenge.
+    await new Promise(resolve => setTimeout(resolve, 10000));
+
+    const title = await page.title().catch(() => 'No title');
+    const currentUrl = page.url();
+
+    // Capture any M3U8 URL that is exposed through normal page requests.
+    const observedM3u8 = new Set();
+
+    const requestListener = request => {
+      try {
+        const url = request.url();
+        if (/\\.m3u8(?:[?#]|$)/i.test(url)) {
+          observedM3u8.add(url);
+        }
+      } catch (_) {}
+    };
+
+    page.on('request', requestListener);
+
+    // Give the page a short additional window to make normal requests.
+    await new Promise(resolve => setTimeout(resolve, 3000));
+
+    page.off('request', requestListener);
+
+    const html = await page.content();
+
+    console.log(
+      `📄 [Browserless] Final Status: ${initialStatus} | ` +
+      `Title: "${title}" | HTML Length: ${html.length}`
+    );
+
+    console.log(`📍 [Browserless] Final URL: ${currentUrl}`);
+
+    if (observedM3u8.size > 0) {
+      console.log(
+        `🎯 [Browserless] Observed ${observedM3u8.size} M3U8 request(s).`
       );
     }
 
+    // Return the final DOM to the existing extractor.
+    // A 403 is not rejected here because the browser may have navigated
+    // after the initial response. If it remains a challenge page,
+    // extraction will simply report that no M3U8 was found.
     if (!html || html.length < 100) {
       throw new Error(
         `Browserless returned an empty/very small page (${html.length} bytes)`
       );
+    }
+
+    // Attach observed URLs without changing the existing extractor API.
+    if (observedM3u8.size > 0) {
+      return `${html}\\n<!-- BROWSERLESS_OBSERVED_M3U8\\n${[
+        ...observedM3u8
+      ].join('\\n')}\\n-->`;
     }
 
     return html;
