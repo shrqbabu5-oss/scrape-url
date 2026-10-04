@@ -1,7 +1,18 @@
 // ================= CONFIGURATION =================
 
-// 👉 APNI BROWSERLESS API KEY YAHA DAALEIN (Fastest Cloud Browser):
-const BROWSERLESS_API_KEY = "2VNbTximwc4XYKC15c29aeecd697096c6785cca3e5ca4aaf4";
+// 👉 APNI MULTIPLE BROWSERLESS API KEYS YAHA DAALEIN:
+const BROWSERLESS_API_KEYS = [
+  "2VNbTximwc4XYKC15c29aeecd697096c6785cca3e5ca4aaf4",
+  "2VNfT06YbaqaLZKec7ddd9ca50f99d67d70adca3a2ea3f4e1",
+  "2VNfcpYqdfnFrhv23f6386c90c2fcbe205e5d30e4160d60ac"
+];
+
+// Randomly ek API key select karega har run/request ke liye:
+function getRandomBrowserlessKey() {
+  const validKeys = BROWSERLESS_API_KEYS.filter(k => k && k.trim() !== "" && !k.includes("Aapki_"));
+  if (validKeys.length === 0) return null;
+  return validKeys[Math.floor(Math.random() * validKeys.length)];
+}
 
 // 👉 APNI ZENROWS API KEY YAHA DAALEIN (Fallback):
 const ZENROWS_API_KEY = "YOUR_ZENROWS_API_KEY_HERE";
@@ -16,7 +27,7 @@ const TABLE_NAME = "live_channels";
 const CHANNELS_TO_UPDATE = [
   {
     id: "starsp4",
-    name: "Star Sports 1 (Hi)",
+    name: "Star Sports 2 (Hi)",
     pageUrl: "https://playsza.xyz/uembed.php?v=starsp4",
     referer: "https://playsza.xyz/",
     language: "English",
@@ -134,11 +145,14 @@ function findEmbeddedIframe(html) {
 // ================= BROWSERLESS BQL FETCHER =================
 
 async function fetchWithBrowserless(targetUrl) {
+  const activeKey = getRandomBrowserlessKey();
+  if (!activeKey) throw new Error("No browserless API keys available!");
+
   const endpoint = "https://production-sfo.browserless.io/chromium/bql";
   const proxyString = "&proxy=residential&proxySticky=true&proxyCountry=in";
   const optionsString = "&humanlike=true&blockAds=true&blockConsentModals=true";
 
-  const url = `${endpoint}?token=${BROWSERLESS_API_KEY}${proxyString}${optionsString}`;
+  const url = `${endpoint}?token=${activeKey}${proxyString}${optionsString}`;
 
   // Native GraphQL Query matching your working IDE example
   const query = `
@@ -251,7 +265,7 @@ async function fetchWithScrapingAnt(targetUrl) {
 // ================= FETCH DISPATCHER =================
 
 async function fetchPageHtml(targetUrl) {
-  const hasBrowserless = BROWSERLESS_API_KEY && BROWSERLESS_API_KEY !== "YOUR_BROWSERLESS_API_KEY_HERE";
+  const hasBrowserless = getRandomBrowserlessKey() !== null;
   const hasZenrows = ZENROWS_API_KEY && ZENROWS_API_KEY !== "YOUR_ZENROWS_API_KEY_HERE";
   const hasScrapingAnt = SCRAPINGANT_API_KEY && SCRAPINGANT_API_KEY !== "";
 
@@ -333,11 +347,11 @@ async function updateChannelInSupabase(channel, newStreamUrl) {
 // ================= WORKER CYCLE =================
 
 async function runCycle() {
-  const hasBrowserless = BROWSERLESS_API_KEY && BROWSERLESS_API_KEY !== "YOUR_BROWSERLESS_API_KEY_HERE";
+  const hasBrowserless = getRandomBrowserlessKey() !== null;
   const hasZenrows = ZENROWS_API_KEY && ZENROWS_API_KEY !== "YOUR_ZENROWS_API_KEY_HERE";
   const hasScrapingAnt = SCRAPINGANT_API_KEY && SCRAPINGANT_API_KEY !== "";
 
-  const activeEngine = hasBrowserless ? "Browserless BAP SDK (Stealth Cloud)" : (hasZenrows ? "ZenRows Antibot API" : (hasScrapingAnt ? "ScrapingAnt API" : "None"));
+  const activeEngine = hasBrowserless ? "BrowserQL (Browserless API)" : (hasZenrows ? "ZenRows Antibot API" : (hasScrapingAnt ? "ScrapingAnt API" : "None"));
 
   console.log(`\n====================================================`);
   console.log(`   HTTP STREAM TOKEN SCRAPER (CYCLE: ${new Date().toLocaleTimeString()})   `);
