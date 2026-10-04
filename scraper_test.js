@@ -8,14 +8,9 @@ const CHROMIUM_PATH = fs.existsSync('/opt/google/chrome/chrome')
   ? '/opt/google/chrome/chrome'
   : '/usr/bin/google-chrome';
 
-// ============================================================
-// CONFIG
-// ============================================================
-
 const PROFILE_DIR = path.join(__dirname, 'profile');
 
-// Cookie JSON GitHub Secret / environment variable se
-const REPLIT_COOKIES = [
+const REPLIT_COOKIES = '[
     {
         "domain": "replit.com",
         "expirationDate": 1821159935,
@@ -57,7 +52,7 @@ const REPLIT_COOKIES = [
     },
     {
         "domain": ".replit.com",
-        "expirationDate": 1791116384.847124,
+        "expirationDate": 1791117285.145557,
         "hostOnly": false,
         "httpOnly": true,
         "name": "__cf_bm",
@@ -66,11 +61,11 @@ const REPLIT_COOKIES = [
         "secure": true,
         "session": false,
         "storeId": null,
-        "value": "W2hbcnBRSwU2guZbG7ID_VcprJhhDcoggBH4mg6CDpA-1791114583.151279-1.0.1.1-rghgsEK.TaU9iuo8vRoLQ.I6HLD8VHYL2l3IPeI_ZAOU6VeQD4UeD80Ni.hvizThOScbAWgk5uiOhyPs15msJP1qjT5vLy15qwblu8NaPKrqNonGDVvFOBpBIHc92Rol"
+        "value": "ym0AZEsA2085jfZRCy.h2Dj8NGjlt.t_mG4ZPgrbIpc-1791115483.122239-1.0.1.1-eG8Q9NRS7yzypsZ7QDp34KgPoYOky_LD0E3JBAgaMWb4dBaFUkrkP5b5jbKhovc6LfDWzC1qg4Dk5ngO36.StGyn.kc2kdOFsBhmIXNkS92wUpOX.23My7yj2gJWEgzd"
     },
     {
         "domain": "replit.com",
-        "expirationDate": 1791115776.410245,
+        "expirationDate": 1791116290.817078,
         "hostOnly": true,
         "httpOnly": true,
         "name": "__Host-session-sig",
@@ -79,11 +74,11 @@ const REPLIT_COOKIES = [
         "secure": true,
         "session": false,
         "storeId": null,
-        "value": "eyJhbGciOiJSUzI1NiIsImtpZCI6ImNmLWp3dC0yMDI2LTA1LTA2LTE4MDMiLCJ0eXAiOiJKV1QifQ.eyJzdWIiOiI2MjQwMzgzOCIsInRjIjoxNzg0NDAyNTE5LCJlbnQiOmZhbHNlLCJwYWlkIjpmYWxzZSwiaWF0IjoxNzkxMTE0ODc0LCJleHAiOjE3OTExMTU3NzR9.cYecZ1nl5utnNgFJWBiTMN0Fh1QUC1EL24NHSNgKm68U4_Rgcdera-2bJPptF1lL6XsWUz2q6fi8F7ifK_WPVmG9AflmEJZDtb45RWdODWrt1Kkgl4di-n89q5OfisTW714o5c3xaab-MpPY1b0T7vR4QpScxhDy7xMX6r_mZ8Y5nJWy-kVxd19rwSAqueuO6KWYXNzhMqc8k9skzgJV5Limdxs26p4AulrbG2CcXnzJSlSdIaVkqanqVI7x7NH_T7o-NGoGw--xfIrPZx0xja8F9Ru7q9yxT_aVDsteIsJD1Sjw4xxKxwgglBA45TuB0YJ8SiLvhkTQVqBawTkUOQ"
+        "value": "eyJhbGciOiJSUzI1NiIsImtpZCI6ImNmLWp3dC0yMDI2LTA1LTA2LTE4MDMiLCJ0eXAiOiJKV1QifQ.eyJzdWIiOiI2MjQwMzgzOCIsInRjIjoxNzg0NDAyNTE5LCJlbnQiOmZhbHNlLCJwYWlkIjpmYWxzZSwiaWF0IjoxNzkxMTE1Mzg4LCJleHAiOjE3OTExMTYyODh9.bI7Ox8_uYF_HCI-Acegn538r_h_cKbqihqR0XYgW9042BcpO2mByt8iDdLv4W3XzmHh1qEC257wEtbVppH0nwqELW5Ktti5i5pkDAZ08AlmeuJ_To0-7du-aijlFMG1O6hbkUn2buitXPHONoAbHV7gIYtut_X2b3CEp-L6ZAi91-6E07fCXXM2DAGUE0o1vjLW0klr66Dle5h_uEW1GZ3OK330gT-miCI8ADkkdNPOVyxG5xhQBNQfFmf5UGUQ4Cf2ZidqUNYn0W1jq9D5bX7Vl7ydQuWbnZq5KzOzrN17P4hrYu2CzHja6KiiVycWOGPAPCyXq7Ksjc9Z7BOU5TQ"
     },
     {
         "domain": "replit.com",
-        "expirationDate": 1791115776.410099,
+        "expirationDate": 1791116290.816936,
         "hostOnly": true,
         "httpOnly": true,
         "name": "__Host-wr-tc",
@@ -158,40 +153,97 @@ const REPLIT_COOKIES = [
         "storeId": null,
         "value": "FPID2.2.tkAKwpmRziYmC%2BpwSGAyFh%2BWKEHxc8G8o6kNrQbhlYI%3D.1789623938"
     }
-];
-
-// ============================================================
-// PROFILE
-// ============================================================
+]';
 
 if (!fs.existsSync(PROFILE_DIR)) {
   fs.mkdirSync(PROFILE_DIR, { recursive: true });
 }
 
 // ============================================================
-// COOKIE LOADER
+// LOAD COOKIES
 // ============================================================
 
 async function loadCookies(page) {
   if (!REPLIT_COOKIES) {
-    console.log('🍪 REPLIT_COOKIES not configured.');
-    console.log('   Using existing Chrome profile if available.');
-    return;
+    console.log('🍪 No REPLIT_COOKIES secret found.');
+    console.log('   Using cached Chrome profile.');
+    return true;
+  }
+
+  // Detect common wrong secret value
+  if (
+    REPLIT_COOKIES === '[object Object]' ||
+    REPLIT_COOKIES === 'undefined' ||
+    REPLIT_COOKIES === 'null'
+  ) {
+    console.log('');
+    console.log('❌ REPLIT_COOKIES is invalid.');
+    console.log(
+      '   GitHub Secret contains an object instead of JSON.'
+    );
+    console.log('');
+    console.log('Expected format:');
+    console.log(
+      '[{"name":"COOKIE_NAME","value":"COOKIE_VALUE","domain":".replit.com","path":"/"}]'
+    );
+    console.log('');
+    return false;
   }
 
   try {
     const cookies = JSON.parse(REPLIT_COOKIES);
 
     if (!Array.isArray(cookies)) {
-      throw new Error('REPLIT_COOKIES must be a JSON array');
+      console.log(
+        '❌ REPLIT_COOKIES must contain a JSON array.'
+      );
+      return false;
     }
 
-    await page.setCookie(...cookies);
+    const validCookies = cookies
+      .filter(cookie =>
+        cookie &&
+        typeof cookie === 'object' &&
+        cookie.name &&
+        cookie.value
+      )
+      .map(cookie => ({
+        name: String(cookie.name),
+        value: String(cookie.value),
+        domain: cookie.domain || '.replit.com',
+        path: cookie.path || '/',
+        ...(cookie.httpOnly !== undefined
+          ? { httpOnly: Boolean(cookie.httpOnly) }
+          : {}),
+        ...(cookie.secure !== undefined
+          ? { secure: Boolean(cookie.secure) }
+          : {})
+      }));
 
-    console.log(`🍪 ${cookies.length} Replit cookie(s) loaded.`);
+    if (!validCookies.length) {
+      console.log('❌ No valid cookies found.');
+      return false;
+    }
+
+    await page.setCookie(...validCookies);
+
+    console.log(
+      `🍪 Loaded ${validCookies.length} Replit cookie(s).`
+    );
+
+    return true;
+
   } catch (error) {
-    console.error('❌ Failed to load REPLIT_COOKIES:');
-    console.error(error.message);
+    console.log('');
+    console.log('❌ Failed to parse REPLIT_COOKIES.');
+    console.log('   Error:', error.message);
+    console.log('');
+    console.log(
+      '   The GitHub Secret must be a JSON string.'
+    );
+    console.log('');
+
+    return false;
   }
 }
 
@@ -207,7 +259,8 @@ async function start() {
   console.log('Browser    :', CHROMIUM_PATH);
   console.log('Profile    :', PROFILE_DIR);
   console.log('Proxy      : Disabled');
-  console.log('====================================================\n');
+  console.log('====================================================');
+  console.log('');
 
   const launchArgs = [
     '--no-sandbox',
@@ -243,45 +296,82 @@ async function start() {
     );
 
     // --------------------------------------------------------
-    // Load authentication cookies
+    // Cookies
     // --------------------------------------------------------
 
     await loadCookies(page);
 
     // --------------------------------------------------------
-    // Open Replit
+    // Navigate
     // --------------------------------------------------------
 
     console.log('🌐 Opening Replit...');
 
-    await page.goto(TARGET_URL, {
+    const response = await page.goto(TARGET_URL, {
       waitUntil: 'domcontentloaded',
       timeout: 60000
     }).catch(error => {
-      console.log('⚠️ Navigation:', error.message);
+      console.log(
+        '⚠️ Navigation error:',
+        error.message
+      );
+
+      return null;
     });
 
-    // Give Replit UI time to load
-    await new Promise(resolve => setTimeout(resolve, 5000));
+    await new Promise(resolve =>
+      setTimeout(resolve, 5000)
+    );
 
-    console.log('📄 Current URL:', page.url());
-    console.log('📄 Page title:', await page.title().catch(() => ''));
-
-    // --------------------------------------------------------
-    // Check if page redirected to login
-    // --------------------------------------------------------
+    const statusCode = response
+      ? response.status()
+      : null;
 
     const currentUrl = page.url();
+    const title = await page.title().catch(() => '');
+
+    console.log('');
+    console.log('📄 HTTP Status:', statusCode);
+    console.log('📄 Current URL:', currentUrl);
+    console.log('📄 Page title :', title);
+    console.log('');
+
+    // --------------------------------------------------------
+    // 404 detection
+    // --------------------------------------------------------
+
+    if (statusCode === 404 || title.includes('404')) {
+      console.log(
+        '❌ Replit returned HTTP 404.'
+      );
+      console.log('');
+      console.log(
+        'The problem is not the Run button.'
+      );
+      console.log(
+        'Check that TARGET_URL points to the correct Replit project.'
+      );
+      console.log('');
+
+      return;
+    }
+
+    // --------------------------------------------------------
+    // Login detection
+    // --------------------------------------------------------
 
     if (
       currentUrl.includes('/login') ||
       currentUrl.includes('/signup') ||
       currentUrl.includes('/auth')
     ) {
-      console.log('');
-      console.log('❌ Replit login session is not available.');
-      console.log('   Check REPLIT_COOKIES or cached profile.');
-      console.log('');
+      console.log(
+        '❌ Replit session is not authenticated.'
+      );
+      console.log(
+        'Check REPLIT_COOKIES or the cached profile.'
+      );
+
       return;
     }
 
@@ -289,33 +379,40 @@ async function start() {
     // Find Run button
     // --------------------------------------------------------
 
-    console.log('🔎 Looking for Run button...\n');
+    console.log(
+      '🔎 Looking for Run button...\n'
+    );
 
     let clickedSuccess = false;
 
     for (let attempt = 1; attempt <= 15; attempt++) {
+
       console.log(
         `[${new Date().toLocaleTimeString()}] ` +
         `Checking Run button (${attempt}/15)...`
       );
 
       const result = await page.evaluate(() => {
-        // Direct selectors
-        const directSelectors = [
+
+        const selectors = [
           '[action="run_button_used"]',
           '[data-action="run_button_used"]',
           '[data-analytics*="run_button_used"]',
           'button[aria-label*="Run"]'
         ];
 
-        for (const selector of directSelectors) {
-          const element = document.querySelector(selector);
+        for (const selector of selectors) {
+
+          const element =
+            document.querySelector(selector);
 
           if (element) {
+
             const button =
               element.closest('button') || element;
 
             if (!button.disabled) {
+
               button.click();
 
               return {
@@ -331,7 +428,6 @@ async function start() {
           }
         }
 
-        // Text based detection
         const elements = Array.from(
           document.querySelectorAll(
             'button, div[role="button"], a'
@@ -339,6 +435,7 @@ async function start() {
         );
 
         for (const element of elements) {
+
           const text = (
             element.innerText ||
             element.textContent ||
@@ -348,12 +445,16 @@ async function start() {
           if (
             text === 'Run' ||
             text === '▶ Run' ||
-            text.includes('Run .replit run command')
+            text.includes(
+              'Run .replit run command'
+            )
           ) {
+
             const button =
               element.closest('button') || element;
 
             if (!button.disabled) {
+
               button.click();
 
               return {
@@ -371,18 +472,27 @@ async function start() {
       });
 
       if (result.success) {
+
         console.log('');
         console.log(
-          `🚀 SUCCESS: Run button clicked!`
+          '🚀 SUCCESS: Run button clicked!'
         );
-        console.log(`   Method: ${result.method}`);
-        console.log(`   Text  : ${result.text}`);
+
+        console.log(
+          'Method:',
+          result.method
+        );
+
+        console.log(
+          'Text:',
+          result.text
+        );
 
         clickedSuccess = true;
 
         console.log('');
         console.log(
-          '⏳ Waiting 25 seconds for Replit container...'
+          '⏳ Waiting 25 seconds for container...'
         );
 
         await new Promise(resolve =>
@@ -397,18 +507,18 @@ async function start() {
       );
     }
 
-    // --------------------------------------------------------
-    // Result
-    // --------------------------------------------------------
-
     if (clickedSuccess) {
       console.log('');
-      console.log('✅ Replit workflow completed successfully.');
-      console.log('💾 Chrome profile will be cached.');
+      console.log(
+        '✅ Replit workflow completed successfully.'
+      );
+      console.log(
+        '💾 Profile will be cached.'
+      );
     } else {
       console.log('');
       console.log(
-        '⚠️ Run button was not detected within the timeout.'
+        '⚠️ Run button was not detected.'
       );
     }
 
