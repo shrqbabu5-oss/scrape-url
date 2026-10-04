@@ -10,7 +10,7 @@ const CHROMIUM_PATH = fs.existsSync('/opt/google/chrome/chrome')
 
 const PROFILE_DIR = path.join(__dirname, 'profile');
 
-const REPLIT_COOKIES = '[
+const REPLIT_COOKIES = [
     {
         "domain": "replit.com",
         "expirationDate": 1821159935,
@@ -153,7 +153,7 @@ const REPLIT_COOKIES = '[
         "storeId": null,
         "value": "FPID2.2.tkAKwpmRziYmC%2BpwSGAyFh%2BWKEHxc8G8o6kNrQbhlYI%3D.1789623938"
     }
-]';
+];
 
 if (!fs.existsSync(PROFILE_DIR)) {
   fs.mkdirSync(PROFILE_DIR, { recursive: true });
