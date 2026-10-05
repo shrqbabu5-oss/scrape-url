@@ -159,30 +159,27 @@ async function fetchWithBrowserless(targetUrl) {
 
   const url = `${endpoint}?token=${activeKey}${proxyString}${optionsString}`;
 
-  // Native GraphQL Query matching your working IDE example
+  // Native GraphQL Query - Correct Browserless BQL Syntax
   const query = `
     mutation ScrapeStreams {
-      # 1. Provide a realistic browser viewport
       viewport(width: 1366, height: 768) {
         width
         height
       }
 
-      # 2. Setup the proxy for this session
       proxy(type: [document, xhr], country: IN, sticky: true) {
         time
       }
 
-      # 3. Load the Streaming URL and wait for initial load
       goto(url: "${targetUrl}", waitUntil: networkIdle) {
         status
       }
 
-      # 4. Wait 12 seconds for Cloudflare Turnstile to auto-bypass and scripts to decode m3u8
-      waitForTimeout(timeout: 12000)
+      waitForTimeout(time: 12000) {
+        time
+      }
 
-      # 5. Extract the page HTML to be parsed by our regex matching logic
-      content {
+      page {
         html
       }
     }
