@@ -1,21 +1,23 @@
 // ================= CONFIGURATION =================
 
 // 👉 APNI MULTIPLE BROWSERLESS API KEYS YAHA DAALEIN:
-// const BROWSERLESS_API_KEYS = [
-//  "2VNbTximwc4XYKC15c29aeecd697096c6785cca3e5ca4aaf4",
-//  "2VNfT06YbaqaLZKec7ddd9ca50f99d67d70adca3a2ea3f4e1",
-//  "2VNfcpYqdfnFrhv23f6386c90c2fcbe205e5d30e4160d60ac",
-//  "2VNfzzywRWG0efx657bee40877a64ab627f11ad371470b60a",
-//  "2VNgI6t86P96vhzfa3230f812cc184b5581d1e27efd2e0dc9",
-//  "2VNgLWz1VU40pBq257f8be8c70fb800446052140e24ae8004",
-//  "2VNgP9YjTzyUzOU0ec10d4592b9929c2255fc0efa12b09f54",
-//  "2VNgTNlNF5bh9Agda47911d5c90c02bb23f3b413e4dd72064"
-// ];
+const BROWSERLESS_API_KEYS = [
+  "2VNbTximwc4XYKC15c29aeecd697096c6785cca3e5ca4aaf4",
+  "2VNfT06YbaqaLZKec7ddd9ca50f99d67d70adca3a2ea3f4e1",
+  "2VNfcpYqdfnFrhv23f6386c90c2fcbe205e5d30e4160d60ac",
+  "2VNfzzywRWG0efx657bee40877a64ab627f11ad371470b60a",
+  "2VNgI6t86P96vhzfa3230f812cc184b5581d1e27efd2e0dc9",
+  "2VNgLWz1VU40pBq257f8be8c70fb800446052140e24ae8004",
+  "2VNgP9YjTzyUzOU0ec10d4592b9929c2255fc0efa12b09f54",
+  "2VNgTNlNF5bh9Agda47911d5c90c02bb23f3b413e4dd72064"
+];
 
-// ================= CONFIGURATION =================
-
-// 👉 APNI BROWSERLESS API KEY YAHA DAALEIN (Fastest Cloud Browser):
-const BROWSERLESS_API_KEY = "2VNbTximwc4XYKC15c29aeecd697096c6785cca3e5ca4aaf4";
+// Randomly ek API key select karega har run/request ke liye:
+function getRandomBrowserlessKey() {
+  const validKeys = BROWSERLESS_API_KEYS.filter(k => k && k.trim() !== "" && !k.includes("Aapki_"));
+  if (validKeys.length === 0) return null;
+  return validKeys[Math.floor(Math.random() * validKeys.length)];
+}
 
 // 👉 APNI ZENROWS API KEY YAHA DAALEIN (Fallback):
 const ZENROWS_API_KEY = "YOUR_ZENROWS_API_KEY_HERE";
@@ -23,14 +25,14 @@ const ZENROWS_API_KEY = "YOUR_ZENROWS_API_KEY_HERE";
 // 👉 APNI SCRAPINGANT API KEY (Optional Fallback):
 const SCRAPINGANT_API_KEY = "";
 
-const SUPABASE_URL = "https://exaorbbpvxnogpbvyayx.supabase.co"; // Replace with your actual Supabase URL
-const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV4YW9yYmJwdnhub2dwYnZ5YXl4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkxMjM4MDUsImV4cCI6MjEwNDY5OTgwNX0.mnV03xUfYtG5xFftaNNnkK_S7UkIGPLw5QTqcIf6aWs"; // Replace with your actual Supabase Key
+const SUPABASE_URL = "https://exaorbbpvxnogpbvyayx.supabase.co";
+const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV4YW9yYmJwdnhub2dwYnZ5YXl4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkxMjM4MDUsImV4cCI6MjEwNDY5OTgwNX0.mnV03xUfYtG5xFftaNNnkK_S7UkIGPLw5QTqcIf6aWs";
 const TABLE_NAME = "live_channels";
 
 const CHANNELS_TO_UPDATE = [
   {
     id: "starsp4",
-    name: "Star Sports 2 (Eng)",
+    name: "Star Sports 1 (Hi)",
     pageUrl: "https://playsza.xyz/uembed.php?v=starsp4",
     referer: "https://playsza.xyz/",
     language: "English",
@@ -47,7 +49,7 @@ const CHANNELS_TO_UPDATE = [
   {
     id: "ten1",
     name: "Sony Sports 1 HD",
-    pageUrl: "https://playsza.xyz/uembed.php?v=ten1",
+    pageUrl: "https://playsza.xyz/uembed.php?v=sony1c",
     referer: "https://playsza.xyz/",
     language: "English",
     category: "Sports"
@@ -55,14 +57,12 @@ const CHANNELS_TO_UPDATE = [
   {
     id: "starsp2",
     name: "Star Sports 2 (Hi)",
-    pageUrl: "https://playsza.xyz/uembed.php?v=starsp2",
+    pageUrl: "https://playsza.xyz/uembed.php?v=star3in",
     referer: "https://playsza.xyz/",
     language: "Hindi",
     category: "Cricket"
   }
 ];
-
-const REFRESH_INTERVAL_MINUTES = parseInt(process.env.REFRESH_INTERVAL_MINUTES || '45', 10);
 
 // ================= P.A.C.K.E.R UNPACKER =================
 
@@ -152,12 +152,15 @@ function findEmbeddedIframe(html) {
 async function fetchWithBrowserless(targetUrl) {
   let browser = null;
   try {
+    const activeKey = getRandomBrowserlessKey();
+    if (!activeKey) throw new Error("No browserless API keys available!");
+
     const bapModule = await import('@browserless.io/bap-ts');
     const Browserless = bapModule.default || bapModule;
 
-     browser = Browserless.connect({
+    browser = Browserless.connect({
       browserWSEndpoint: `wss://production-sfo.browserless.io/stealth/bql?proxy=residential&proxyCountry=in&blockAds=true&humanlike=true`,
-      token: BROWSERLESS_API_KEY,
+      token: activeKey,
     });
     const page = await browser.newPage();
     await page.setExtraHTTPHeaders({ 'Referer': 'https://playsza.xyz/' });
@@ -240,7 +243,7 @@ async function fetchWithScrapingAnt(targetUrl) {
 // ================= FETCH DISPATCHER =================
 
 async function fetchPageHtml(targetUrl) {
-  const hasBrowserless = BROWSERLESS_API_KEY && BROWSERLESS_API_KEY !== "YOUR_BROWSERLESS_API_KEY_HERE";
+  const hasBrowserless = getRandomBrowserlessKey() !== null;
   const hasZenrows = ZENROWS_API_KEY && ZENROWS_API_KEY !== "YOUR_ZENROWS_API_KEY_HERE";
   const hasScrapingAnt = SCRAPINGANT_API_KEY && SCRAPINGANT_API_KEY !== "";
 
@@ -253,7 +256,7 @@ async function fetchPageHtml(targetUrl) {
   if (hasScrapingAnt) {
     return await fetchWithScrapingAnt(targetUrl);
   }
-  throw new Error("No API key configured. Please set BROWSERLESS_API_KEY or ZENROWS_API_KEY at the top of the file.");
+  throw new Error("No API key configured. Please set BROWSERLESS_API_KEYS or ZENROWS_API_KEY at the top of the file.");
 }
 
 // ================= SUPABASE SYNC (PATCH / INSERT) =================
@@ -322,11 +325,11 @@ async function updateChannelInSupabase(channel, newStreamUrl) {
 // ================= WORKER CYCLE =================
 
 async function runCycle() {
-  const hasBrowserless = BROWSERLESS_API_KEY && BROWSERLESS_API_KEY !== "YOUR_BROWSERLESS_API_KEY_HERE";
+  const hasBrowserless = getRandomBrowserlessKey() !== null;
   const hasZenrows = ZENROWS_API_KEY && ZENROWS_API_KEY !== "YOUR_ZENROWS_API_KEY_HERE";
   const hasScrapingAnt = SCRAPINGANT_API_KEY && SCRAPINGANT_API_KEY !== "";
 
-  const activeEngine = hasBrowserless ? "Browserless BAP SDK (Stealth Cloud)" : (hasZenrows ? "ZenRows Antibot API" : (hasScrapingAnt ? "ScrapingAnt API" : "None"));
+  const activeEngine = hasBrowserless ? "BrowserQL (Browserless API)" : (hasZenrows ? "ZenRows Antibot API" : (hasScrapingAnt ? "ScrapingAnt API" : "None"));
 
   console.log(`\n====================================================`);
   console.log(`   HTTP STREAM TOKEN SCRAPER (CYCLE: ${new Date().toLocaleTimeString()})   `);
@@ -375,11 +378,15 @@ async function runCycle() {
     await new Promise(r => setTimeout(r, 2000));
   }
 
-  console.log(`\n>>> Cycle completed. Next run in ${REFRESH_INTERVAL_MINUTES} minutes.`);
+  console.log(`\n====================================================`);
+  console.log(`   Scrape Run Finished Successfully ✅     `);
+  console.log(`====================================================`);
 }
 
-// 1. Run immediately
-runCycle();
-
-// 2. Schedule every N minutes
-setInterval(runCycle, REFRESH_INTERVAL_MINUTES * 60 * 1000);
+// Run immediately and exit (GitHub Actions handles scheduling)
+runCycle().then(() => {
+  process.exit(0);
+}).catch((err) => {
+  console.error("Fatal Error:", err);
+  process.exit(1);
+});
