@@ -1,23 +1,21 @@
 // ================= CONFIGURATION =================
 
 // 👉 APNI MULTIPLE BROWSERLESS API KEYS YAHA DAALEIN:
-const BROWSERLESS_API_KEYS = [
-  "2VNbTximwc4XYKC15c29aeecd697096c6785cca3e5ca4aaf4",
-  "2VNfT06YbaqaLZKec7ddd9ca50f99d67d70adca3a2ea3f4e1",
-  "2VNfcpYqdfnFrhv23f6386c90c2fcbe205e5d30e4160d60ac",
-  "2VNfzzywRWG0efx657bee40877a64ab627f11ad371470b60a",
-  "2VNgI6t86P96vhzfa3230f812cc184b5581d1e27efd2e0dc9",
-  "2VNgLWz1VU40pBq257f8be8c70fb800446052140e24ae8004",
-  "2VNgP9YjTzyUzOU0ec10d4592b9929c2255fc0efa12b09f54",
-  "2VNgTNlNF5bh9Agda47911d5c90c02bb23f3b413e4dd72064"
-];
+// const BROWSERLESS_API_KEYS = [
+//  "2VNbTximwc4XYKC15c29aeecd697096c6785cca3e5ca4aaf4",
+//  "2VNfT06YbaqaLZKec7ddd9ca50f99d67d70adca3a2ea3f4e1",
+//  "2VNfcpYqdfnFrhv23f6386c90c2fcbe205e5d30e4160d60ac",
+//  "2VNfzzywRWG0efx657bee40877a64ab627f11ad371470b60a",
+//  "2VNgI6t86P96vhzfa3230f812cc184b5581d1e27efd2e0dc9",
+//  "2VNgLWz1VU40pBq257f8be8c70fb800446052140e24ae8004",
+//  "2VNgP9YjTzyUzOU0ec10d4592b9929c2255fc0efa12b09f54",
+//  "2VNgTNlNF5bh9Agda47911d5c90c02bb23f3b413e4dd72064"
+// ];
 
-// Randomly ek API key select karega har run/request ke liye:
-function getRandomBrowserlessKey() {
-  const validKeys = BROWSERLESS_API_KEYS.filter(k => k && k.trim() !== "" && !k.includes("Aapki_"));
-  if (validKeys.length === 0) return null;
-  return validKeys[Math.floor(Math.random() * validKeys.length)];
-}
+// ================= CONFIGURATION =================
+
+// 👉 APNI BROWSERLESS API KEY YAHA DAALEIN (Fastest Cloud Browser):
+const BROWSERLESS_API_KEY = "2VNbTximwc4XYKC15c29aeecd697096c6785cca3e5ca4aaf4";
 
 // 👉 APNI ZENROWS API KEY YAHA DAALEIN (Fallback):
 const ZENROWS_API_KEY = "YOUR_ZENROWS_API_KEY_HERE";
@@ -32,7 +30,7 @@ const TABLE_NAME = "live_channels";
 const CHANNELS_TO_UPDATE = [
   {
     id: "starsp4",
-    name: "Star Sports 2 (Hi)",
+    name: "Star Sports 2 (Eng)",
     pageUrl: "https://playsza.xyz/uembed.php?v=starsp4",
     referer: "https://playsza.xyz/",
     language: "English",
@@ -49,7 +47,7 @@ const CHANNELS_TO_UPDATE = [
   {
     id: "ten1",
     name: "Sony Sports 1 HD",
-    pageUrl: "https://playsza.xyz/uembed.php?v=sony1c",
+    pageUrl: "https://playsza.xyz/uembed.php?v=ten1",
     referer: "https://playsza.xyz/",
     language: "English",
     category: "Sports"
@@ -57,12 +55,14 @@ const CHANNELS_TO_UPDATE = [
   {
     id: "starsp2",
     name: "Star Sports 2 (Hi)",
-    pageUrl: "https://playsza.xyz/uembed.php?v=star3in",
+    pageUrl: "https://playsza.xyz/uembed.php?v=starsp2",
     referer: "https://playsza.xyz/",
     language: "Hindi",
     category: "Cricket"
   }
 ];
+
+const REFRESH_INTERVAL_MINUTES = parseInt(process.env.REFRESH_INTERVAL_MINUTES || '45', 10);
 
 // ================= P.A.C.K.E.R UNPACKER =================
 
@@ -147,75 +147,48 @@ function findEmbeddedIframe(html) {
   return match ? match[1] : null;
 }
 
-// ================= BROWSERLESS BQL FETCHER =================
+// ================= BROWSERLESS BAP SDK FETCHER =================
 
 async function fetchWithBrowserless(targetUrl) {
-  const activeKey = getRandomBrowserlessKey();
-  if (!activeKey) throw new Error("No browserless API keys available!");
+  let browser = null;
+  try {
+    const bapModule = await import('@browserless.io/bap-ts');
+    const Browserless = bapModule.default || bapModule;
 
-  const endpoint = "https://production-sfo.browserless.io/chromium/bql";
-  const proxyString = "&proxy=residential&proxySticky=true&proxyCountry=in";
-  const optionsString = "&humanlike=true&blockAds=true&blockConsentModals=true";
+     browser = Browserless.connect({
+      browserWSEndpoint: `wss://production-sfo.browserless.io/stealth/bql?proxy=residential&proxyCountry=in&blockAds=true&humanlike=true`,
+      token: BROWSERLESS_API_KEY,
+    });
+    const page = await browser.newPage();
+    await page.setExtraHTTPHeaders({ 'Referer': 'https://playsza.xyz/' });
+    await page.goto(targetUrl, { waitUntil: 'domContentLoaded', timeout: 30000 });
 
-  const url = `${endpoint}?token=${activeKey}${proxyString}${optionsString}`;
+    console.log('   [Wait] Solving Cloudflare Turnstile...');
+    for (let i = 0; i < 12; i++) {
+        const title = await page.title().catch(() => '');
+        if (!title.includes('Just a moment') && !title.includes('Attention Required')) {
+            break;
+        }
 
-  // Native GraphQL Query - Correct Browserless BQL Syntax
-  const query = `
-    mutation ScrapeStreams {
-      viewport(width: 1366, height: 768) {
-        width
-        height
-      }
+        // Attempt physical internal click via JS if challenge is stuck
+        await page.evaluate(() => {
+           const cf = document.querySelector('iframe[src*="cloudflare"], iframe[src*="turnstile"], #turnstile-wrapper');
+           if (cf) cf.click();
+        }).catch(() => {});
 
-      proxy(type: [document, xhr], country: IN, sticky: true) {
-        time
-      }
-
-      goto(url: "${targetUrl}", waitUntil: networkIdle) {
-        status
-      }
-
-      waitForTimeout(time: 12000) {
-        time
-      }
-
-      page {
-        html
-      }
+        await new Promise(r => setTimeout(r, 2000));
     }
-  `;
 
-  console.log('   [Wait] Sending BrowserQL mutation and waiting for execution...');
+    // Extra grace period for player scripts to decode the m3u8
+    await new Promise(r => setTimeout(r, 4000));
 
-  const options = {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      query: query,
-      operationName: 'ScrapeStreams'
-    })
-  };
-
-  const response = await fetch(url, options);
-
-  if (!response.ok) {
-    const errText = await response.text();
-    throw new Error(`Browserless HTTP Error (${response.status}): ${errText.slice(0, 150)}`);
+    const html = await page.content();
+    await browser.close();
+    return html;
+  } catch (err) {
+    if (browser) await browser.close().catch(() => {});
+    throw err;
   }
-
-  const data = await response.json();
-
-  if (data.errors) {
-    throw new Error(`BrowserQL Execution Errors: ${JSON.stringify(data.errors)}`);
-  }
-
-  if (data.data && data.data.content && data.data.content.html) {
-    return data.data.content.html;
-  }
-
-  throw new Error('Browserless returned empty HTML content.');
 }
 
 // ================= ZENROWS FETCHER =================
@@ -267,7 +240,7 @@ async function fetchWithScrapingAnt(targetUrl) {
 // ================= FETCH DISPATCHER =================
 
 async function fetchPageHtml(targetUrl) {
-  const hasBrowserless = getRandomBrowserlessKey() !== null;
+  const hasBrowserless = BROWSERLESS_API_KEY && BROWSERLESS_API_KEY !== "YOUR_BROWSERLESS_API_KEY_HERE";
   const hasZenrows = ZENROWS_API_KEY && ZENROWS_API_KEY !== "YOUR_ZENROWS_API_KEY_HERE";
   const hasScrapingAnt = SCRAPINGANT_API_KEY && SCRAPINGANT_API_KEY !== "";
 
@@ -349,11 +322,11 @@ async function updateChannelInSupabase(channel, newStreamUrl) {
 // ================= WORKER CYCLE =================
 
 async function runCycle() {
-  const hasBrowserless = getRandomBrowserlessKey() !== null;
+  const hasBrowserless = BROWSERLESS_API_KEY && BROWSERLESS_API_KEY !== "YOUR_BROWSERLESS_API_KEY_HERE";
   const hasZenrows = ZENROWS_API_KEY && ZENROWS_API_KEY !== "YOUR_ZENROWS_API_KEY_HERE";
   const hasScrapingAnt = SCRAPINGANT_API_KEY && SCRAPINGANT_API_KEY !== "";
 
-  const activeEngine = hasBrowserless ? "BrowserQL (Browserless API)" : (hasZenrows ? "ZenRows Antibot API" : (hasScrapingAnt ? "ScrapingAnt API" : "None"));
+  const activeEngine = hasBrowserless ? "Browserless BAP SDK (Stealth Cloud)" : (hasZenrows ? "ZenRows Antibot API" : (hasScrapingAnt ? "ScrapingAnt API" : "None"));
 
   console.log(`\n====================================================`);
   console.log(`   HTTP STREAM TOKEN SCRAPER (CYCLE: ${new Date().toLocaleTimeString()})   `);
@@ -402,15 +375,11 @@ async function runCycle() {
     await new Promise(r => setTimeout(r, 2000));
   }
 
-  console.log(`\n====================================================`);
-  console.log(`   Scrape Run Finished Successfully ✅     `);
-  console.log(`====================================================`);
+  console.log(`\n>>> Cycle completed. Next run in ${REFRESH_INTERVAL_MINUTES} minutes.`);
 }
 
-// Ensure the script exits properly after one full run (since GitHub Actions cron handles the schedule)
-runCycle().then(() => {
-  process.exit(0);
-}).catch((err) => {
-  console.error("Fatal Error:", err);
-  process.exit(1);
-});
+// 1. Run immediately
+runCycle();
+
+// 2. Schedule every N minutes
+setInterval(runCycle, REFRESH_INTERVAL_MINUTES * 60 * 1000);
